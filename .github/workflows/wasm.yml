@@ -59,19 +59,56 @@ jobs:
           arch: wasm_singlethread
           cache: true
 
-      - name: Configure (qt-cmake / Emscripten)
-        run: >
-          "$QT_ROOT_DIR/bin/qt-cmake" -S . -B build-wasm -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DQT_HOST_PATH="$QT_HOST_PATH"
-          -DDJ_BUILD_APP=ON
-          -DDJ_BUILD_TESTS=OFF
+      # Configure via the Qt WebAssembly toolchain file directly (what qt-cmake
+      # wraps) using plain `cmake`, sidestepping any exec-bit issues with the
+      # qt-cmake wrapper. Diagnostics + full output are mirrored to the job
+      # summary (publicly visible) so failures are debuggable without log auth.
+      - name: Configure (Emscripten / Qt toolchain)
+        run: |
+          set +e
+          {
+            echo '## wasm configure'
+            echo '```'
+            echo "QT_ROOT_DIR=$QT_ROOT_DIR"
+            echo "QT_HOST_PATH=$QT_HOST_PATH"
+            echo "EMSDK=$EMSDK"
+            echo "which cmake: $(which cmake)"
+            echo "which emcc:  $(which emcc || echo MISSING)"
+            echo "--- ls \$QT_ROOT_DIR/bin ---"; ls -la "$QT_ROOT_DIR/bin" 2>&1 | head -40
+            echo "--- qt-cmake ---"; ls -la "$QT_ROOT_DIR/bin/qt-cmake" 2>&1
+            echo "--- toolchain file ---"
+            ls -la "$QT_ROOT_DIR/lib/cmake/Qt6/qt.toolchain.cmake" 2>&1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo '### configure output' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cmake -S . -B build-wasm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$QT_ROOT_DIR/lib/cmake/Qt6/qt.toolchain.cmake" \
+            -DQT_HOST_PATH="$QT_HOST_PATH" \
+            -DDJ_BUILD_APP=ON \
+            -DDJ_BUILD_TESTS=OFF 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          rc=${PIPESTATUS[0]}
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
 
       - name: Build
-        run: cmake --build build-wasm --parallel
+        run: |
+          set +e
+          echo '### build output' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cmake --build build-wasm --parallel 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          rc=${PIPESTATUS[0]}
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
 
       - name: List build output
-        run: ls -la build-wasm/app
+        if: ${{ always() }}
+        run: |
+          echo '### build-wasm/app contents' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -la build-wasm/app 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       # --- End-to-end tests (Playwright, headless Chromium) ----------------
       - name: Set up Node
@@ -92,7 +129,14 @@ jobs:
         env:
           CI: '1'
           WASM_DIR: ${{ github.workspace }}/build-wasm/app
-        run: npx playwright test
+        run: |
+          set +e
+          echo '### e2e output' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npx playwright test 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          rc=${PIPESTATUS[0]}
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
 
       - name: Upload Playwright report
         if: ${{ always() }}
