@@ -61,11 +61,16 @@ jobs:
         shell: bash
         run: |
           set +e
-          echo '### ctest output' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ctest --test-dir build --output-on-failure 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
-          rc=${PIPESTATUS[0]}
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          out=$(ctest --test-dir build --output-on-failure 2>&1)
+          rc=$?
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            # Surface the tail as a public error annotation (logs/summaries on a
+            # public repo still require sign-in to view; annotations don't).
+            msg=$(printf '%s\n' "$out" | tail -50 | sed 's/%/%25/g; s/\r//g' \
+                  | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=ctest failed (rc=$rc)::$msg"
+          fi
           exit $rc
 
       # --- Packaging (tag pushes only) -------------------------------------
@@ -133,9 +138,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          echo '### ctest output' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ctest --test-dir build --output-on-failure 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
-          rc=${PIPESTATUS[0]}
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          out=$(ctest --test-dir build --output-on-failure 2>&1)
+          rc=$?
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            # Surface the tail as a public error annotation (logs/summaries on a
+            # public repo still require sign-in to view; annotations don't).
+            msg=$(printf '%s\n' "$out" | tail -50 | sed 's/%/%25/g; s/\r//g' \
+                  | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=ctest failed (rc=$rc)::$msg"
+          fi
           exit $rc
