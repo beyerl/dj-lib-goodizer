@@ -8,6 +8,8 @@ FetchContent_Declare(
 )
 # Honor the parent project's runtime library on Windows.
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+# Keep GoogleTest out of `cmake --install` (packaging) — we only ship the app.
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(djcore_tests

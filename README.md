@@ -62,6 +62,9 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.9.0** — Milestone 9: packaging — CMake install rules, CI artifacts on
+  tags (windeployqt portable zip / Linux tarball), and production Inno Setup +
+  AppImage scripts under `packaging/`.
 - **v0.8.0** — Milestone 8: opt-in perceptual ops — linked-stereo compressor
   and mid/side width + L/R balance correction (both PerceptualAltering), with a
   mono-safety cross-check that predicts post-widening correlation (FR-WID-7).
