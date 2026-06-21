@@ -1,6 +1,7 @@
 #include "djcore/jobs/AnalysisBatch.h"
 
 #include <chrono>
+#include <exception>
 
 #include "djcore/analysis/AnalysisPipeline.h"
 
