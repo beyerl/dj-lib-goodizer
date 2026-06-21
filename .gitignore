@@ -1,0 +1,18 @@
+# Build output
+/build/
+/out/
+/cmake-build-*/
+*.user
+
+# vcpkg
+/vcpkg_installed/
+
+# IDE / editor
+/.vs/
+/.vscode/
+/.idea/
+*.swp
+
+# OS cruft
+.DS_Store
+Thumbs.db
