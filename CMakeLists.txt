@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(dj-lib-goodizer VERSION 0.1.0 LANGUAGES CXX)
+project(dj-lib-goodizer VERSION 0.1.0 LANGUAGES C CXX)
 
 # ---- Global C++ settings -----------------------------------------------------
 set(CMAKE_CXX_STANDARD 20)

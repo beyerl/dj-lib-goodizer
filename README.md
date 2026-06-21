@@ -62,6 +62,9 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.4.0** — Milestone 4: SQLite data store — vendored amalgamation,
+  WAL + migrations, repositories for tracks/analysis-results/profiles, indexed
+  metric columns, default-profile seeding.
 - **v0.3.0** — Milestone 3: analysis engine — single-decode fan-out pipeline
   feeding silence, loudness/dynamics (BS.1770 K-weighting + gating, crest, DR),
   mono-correlation/fold-down, and stereo-width/balance analyzers.
