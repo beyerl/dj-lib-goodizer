@@ -62,6 +62,9 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.8.0** — Milestone 8: opt-in perceptual ops — linked-stereo compressor
+  and mid/side width + L/R balance correction (both PerceptualAltering), with a
+  mono-safety cross-check that predicts post-widening correlation (FR-WID-7).
 - **v0.7.0** — Milestone 7: Qt UI — database-backed Library View with
   three-state flag colouring, Import Folder → background scan/analyze/persist,
   Track Detail metrics panel, profile switching, Dashboard + Audit tabs.

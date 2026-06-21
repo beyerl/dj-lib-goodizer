@@ -35,6 +35,7 @@ add_library(djcore
   src/db/AuditLogRepository.cpp
   src/jobs/AnalysisBatch.cpp
   src/processing/Operations.cpp
+  src/processing/PerceptualOps.cpp
   src/processing/ProcessingEngine.cpp
   src/profile/DefaultProfiles.cpp
 )
