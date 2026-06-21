@@ -79,8 +79,15 @@ desktop build is unchanged. A small JS bridge (`app/WasmBridge.cpp`) mirrors UI
 state to `window.__djState` and accepts commands via `window.__djCmd`, which the
 Playwright tests under `tests/e2e/` drive.
 
+On every push to `main`, the `wasm` workflow deploys the built app to GitHub
+Pages: **https://beyerl.github.io/dj-lib-goodizer/**. (Requires the repo's Pages
+source to be set to *GitHub Actions* under Settings → Pages.)
+
 ## Status
 
+- **v0.12.0** — Deploy the WebAssembly build to GitHub Pages from the `wasm`
+  workflow on every push to `main`
+  (https://beyerl.github.io/dj-lib-goodizer/).
 - **v0.11.2** — Fix the import-progress freeze: the worker-thread lifecycle is
   extracted into `ImportSession`, which reaps its thread via
   `QThread::finished` → `deleteLater` instead of calling `QThread::wait()` from

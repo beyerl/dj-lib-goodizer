@@ -11,6 +11,17 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Pages deployment needs these token scopes (id-token for the deploy attestation).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one in-flight Pages deployment at a time; don't cancel a running deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 # Qt 6.7.x targets this Emscripten release; keep them in lock-step.
 env:
   QT_VERSION: 6.7.2
@@ -165,3 +176,34 @@ jobs:
           name: dj-lib-goodizer-wasm
           path: dist-web
           if-no-files-found: ignore
+
+  # Publish the built WebAssembly app to GitHub Pages (main branch only). The
+  # single-threaded build needs no cross-origin-isolation headers, so it serves
+  # fine from Pages. Requires the repo's Pages source to be set to
+  # "GitHub Actions" (Settings -> Pages).
+  deploy-pages:
+    name: deploy (github pages)
+    needs: wasm-build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: dj-lib-goodizer-wasm
+          path: dist-web
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -33,6 +33,12 @@ if(DJ_BUILD_APP)
   find_package(Qt6 REQUIRED COMPONENTS Core)
   qt_standard_project_setup()
 
+  # Bake the directories of linked shared libs (i.e. Qt) into the test's RPATH
+  # so it can run from the build tree without LD_LIBRARY_PATH. Without this the
+  # test loads fine on Windows (Qt DLLs are on PATH) but fails to start on Linux
+  # (libQt6Core.so isn't on the loader path).
+  set(CMAKE_BUILD_RPATH_USE_LINK_PATH ON)
+
   qt_add_executable(djapp_tests
     import_session_test.cpp
     ${CMAKE_SOURCE_DIR}/app/ImportSession.cpp
@@ -42,5 +48,7 @@ if(DJ_BUILD_APP)
   )
   target_include_directories(djapp_tests PRIVATE ${CMAKE_SOURCE_DIR}/app)
   target_link_libraries(djapp_tests PRIVATE djcore Qt6::Core GTest::gtest_main)
+  set_target_properties(djapp_tests PROPERTIES
+    BUILD_RPATH "$<TARGET_FILE_DIR:Qt6::Core>")
   gtest_discover_tests(djapp_tests)
 endif()
