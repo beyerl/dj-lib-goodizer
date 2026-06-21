@@ -62,6 +62,9 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.5.0** — Milestone 5: job scheduler — dependency-free worker pool with
+  cooperative pause/resume/cancel (`JobControl`), dynamic `parallelFor`, and a
+  headless `AnalysisBatch` runner with progress + ETA.
 - **v0.4.0** — Milestone 4: SQLite data store — vendored amalgamation,
   WAL + migrations, repositories for tracks/analysis-results/profiles, indexed
   metric columns, default-profile seeding.

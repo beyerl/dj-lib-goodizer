@@ -31,12 +31,15 @@ add_library(djcore
   src/db/TrackRepository.cpp
   src/db/AnalysisResultRepository.cpp
   src/db/ProfileRepository.cpp
+  src/jobs/AnalysisBatch.cpp
   src/profile/DefaultProfiles.cpp
 )
 
+find_package(Threads REQUIRED)
+
 target_include_directories(djcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(djcore PUBLIC cxx_std_20)
-target_link_libraries(djcore PUBLIC sqlite3)
+target_link_libraries(djcore PUBLIC sqlite3 Threads::Threads)
 
 # Broad-format decode/encode (FFmpeg) + libsoxr/libebur128/TagLib are layered in
 # under this flag. The dependency-free WAV backend above is always available.
