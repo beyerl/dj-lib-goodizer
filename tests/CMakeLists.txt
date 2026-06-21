@@ -16,6 +16,7 @@ add_executable(djcore_tests
   analysis_test.cpp
   db_test.cpp
   jobs_test.cpp
+  processing_test.cpp
 )
 target_link_libraries(djcore_tests PRIVATE djcore GTest::gtest_main)
 

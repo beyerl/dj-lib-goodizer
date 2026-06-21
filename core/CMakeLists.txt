@@ -31,7 +31,10 @@ add_library(djcore
   src/db/TrackRepository.cpp
   src/db/AnalysisResultRepository.cpp
   src/db/ProfileRepository.cpp
+  src/db/AuditLogRepository.cpp
   src/jobs/AnalysisBatch.cpp
+  src/processing/Operations.cpp
+  src/processing/ProcessingEngine.cpp
   src/profile/DefaultProfiles.cpp
 )
 

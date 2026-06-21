@@ -62,7 +62,10 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
-- **v0.5.0** — Milestone 5: job scheduler — dependency-free worker pool with
+- **v0.6.0** — Milestone 6: processing engine — standardizing chain (silence
+  trim → gain-only normalize → resample → encode), dry-run planning, true-peak
+  gain limiting, and an audit-log repository.
+- **v0.5.x** — Milestone 5: job scheduler — dependency-free worker pool with
   cooperative pause/resume/cancel (`JobControl`), dynamic `parallelFor`, and a
   headless `AnalysisBatch` runner with progress + ETA.
 - **v0.4.0** — Milestone 4: SQLite data store — vendored amalgamation,
