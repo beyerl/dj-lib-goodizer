@@ -35,6 +35,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: seanmiddleditch/gha-setup-ninja@v5
 
+      # The Ninja generator needs cl.exe/link.exe on PATH. install-qt-action does
+      # not provide the MSVC toolchain environment, so set it up explicitly.
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -47,6 +53,42 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DDJ_BUILD_APP=ON
           -DDJ_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # Verifies the FFmpeg broad-format decode backend compiles, links, and passes
+  # tests with DJ_WITH_AUDIO_BACKENDS=ON. Uses apt-provided FFmpeg dev libraries
+  # (fast) rather than building FFmpeg from source via vcpkg. App build is off
+  # here so no Qt is needed — this job only exercises the headless core.
+  backend-linux:
+    name: linux-audio-backends
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg + build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            pkg-config \
+            libavformat-dev \
+            libavcodec-dev \
+            libavutil-dev \
+            libswresample-dev
+
+      - name: Configure (audio backends on)
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DDJ_BUILD_APP=OFF
+          -DDJ_BUILD_TESTS=ON
+          -DDJ_WITH_AUDIO_BACKENDS=ON
 
       - name: Build
         run: cmake --build build --parallel

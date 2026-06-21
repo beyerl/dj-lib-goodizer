@@ -62,4 +62,7 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
-**v0.1.0** — Milestone 1: buildable skeleton, domain model, Qt shell, CI.
+- **v0.2.0** — Milestone 2: audio I/O — dependency-free WAV decode/encode,
+  windowed-sinc resampler, TPDF dither; FFmpeg broad-format decode backend
+  behind `DJ_WITH_AUDIO_BACKENDS` (verified by a dedicated Linux CI job).
+- **v0.1.x** — Milestone 1: buildable skeleton, domain model, Qt shell, CI.
