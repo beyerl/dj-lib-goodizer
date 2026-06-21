@@ -1,0 +1,240 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e9]:
+        - button "Toggle navigation" [ref=e11] [cursor=pointer]
+        - link "Homepage" [ref=e17] [cursor=pointer]:
+          - /url: /
+          - img [ref=e18]
+        - generic [ref=e20]:
+          - link "Sign in" [ref=e21] [cursor=pointer]:
+            - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fbeyerl%2Fdj-lib-goodizer%2Factions%2Fruns%2F27905227978
+          - button "Appearance settings" [ref=e24] [cursor=pointer]:
+            - img
+  - main [ref=e28]:
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e33]:
+            - img [ref=e34]
+            - link "beyerl" [ref=e37] [cursor=pointer]:
+              - /url: /beyerl
+            - generic [ref=e38]: /
+            - strong [ref=e39]:
+              - link "dj-lib-goodizer" [ref=e40] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer
+            - generic [ref=e41]: Public
+          - generic [ref=e42]:
+            - list:
+              - listitem [ref=e43]:
+                - link "You must be signed in to change notification settings" [ref=e44] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fbeyerl%2Fdj-lib-goodizer
+                  - img [ref=e45]
+                  - text: Notifications
+              - listitem [ref=e47]:
+                - link "Fork 0" [ref=e48] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fbeyerl%2Fdj-lib-goodizer
+                  - img [ref=e49]
+                  - text: Fork
+                  - generic "0" [ref=e51]
+              - listitem [ref=e52]:
+                - link "You must be signed in to star a repository" [ref=e54] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fbeyerl%2Fdj-lib-goodizer
+                  - img [ref=e55]
+                  - text: Star
+                  - generic "0 users starred this repository" [ref=e57]: "0"
+        - navigation "Repository" [ref=e58]:
+          - list [ref=e59]:
+            - listitem [ref=e60]:
+              - link "Code" [ref=e61] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer
+                - img [ref=e62]
+                - generic [ref=e64]: Code
+            - listitem [ref=e65]:
+              - link "Issues" [ref=e66] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/issues
+                - img [ref=e67]
+                - generic [ref=e70]: Issues
+            - listitem [ref=e71]:
+              - link "Pull requests" [ref=e72] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/pulls
+                - img [ref=e73]
+                - generic [ref=e75]: Pull requests
+            - listitem [ref=e76]:
+              - link "Actions" [ref=e77] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/actions
+                - img [ref=e78]
+                - generic [ref=e80]: Actions
+            - listitem [ref=e81]:
+              - link "Projects" [ref=e82] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/projects
+                - img [ref=e83]
+                - generic [ref=e85]: Projects
+            - listitem [ref=e86]:
+              - link "Security and quality" [ref=e87] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/security
+                - img [ref=e88]
+                - generic [ref=e90]: Security and quality
+            - listitem [ref=e91]:
+              - link "Insights" [ref=e92] [cursor=pointer]:
+                - /url: /beyerl/dj-lib-goodizer/pulse
+                - img [ref=e93]
+                - generic [ref=e95]: Insights
+      - generic [ref=e100]:
+        - generic [ref=e103]:
+          - link "build" [ref=e106] [cursor=pointer]:
+            - /url: /beyerl/dj-lib-goodizer/actions/workflows/build.yml
+            - img [ref=e107]
+            - generic [ref=e109]: build
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - img "failed:" [ref=e115]
+              - 'heading "Scaffold project skeleton, domain model, Qt shell, and CI (v0.1.0) #1" [level=1] [ref=e117]':
+                - generic [ref=e118]: "Scaffold project skeleton, domain model, Qt shell, and CI (v0.1.0) #1"
+            - link "Sign in to view logs" [ref=e121] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fbeyerl%2Fdj-lib-goodizer%2Factions%2Fruns%2F27905227978
+        - generic [ref=e122]:
+          - navigation "Workflow run" [ref=e128]:
+            - list [ref=e129]:
+              - listitem [ref=e130]:
+                - link "Summary" [ref=e131] [cursor=pointer]:
+                  - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978
+                  - generic:
+                    - img
+                  - generic [ref=e133]: Summary
+              - generic [ref=e134]:
+                - heading "All jobs" [level=4] [ref=e135]
+                - button "Filter by job status" [ref=e136] [cursor=pointer]:
+                  - img [ref=e137]
+              - listitem [ref=e139]
+              - listitem [ref=e140]:
+                - list [ref=e141]:
+                  - listitem [ref=e142]:
+                    - generic "Loading" [ref=e143]:
+                      - generic [ref=e147]:
+                        - img [ref=e148]
+                        - generic [ref=e151]: Loading
+              - listitem [ref=e152]
+              - listitem [ref=e153]:
+                - heading "Run details" [level=3] [ref=e155]
+                - list "Run details" [ref=e156]:
+                  - listitem [ref=e157]:
+                    - link "Usage" [ref=e158] [cursor=pointer]:
+                      - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/usage
+                      - generic:
+                        - img
+                      - generic [ref=e160]: Usage
+                  - listitem [ref=e161]:
+                    - link "Workflow file" [ref=e162] [cursor=pointer]:
+                      - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/workflow
+                      - generic:
+                        - img
+                      - generic [ref=e164]: Workflow file
+          - generic [ref=e166]:
+            - region "Workflow run summary" [ref=e167]:
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - generic [ref=e170]: Triggered via push June 21, 2026 13:0413 minutes ago
+                  - generic [ref=e171]:
+                    - link "@beyerl beyerl" [ref=e172] [cursor=pointer]:
+                      - /url: /beyerl
+                      - img "@beyerl" [ref=e173]
+                      - text: beyerl
+                    - generic [ref=e174]:
+                      - generic [ref=e175]: pushed
+                      - link "d6e0c95" [ref=e176] [cursor=pointer]:
+                        - /url: /beyerl/dj-lib-goodizer/commit/d6e0c95dad0c27f6a14cba1a849565f16077273a
+                        - img [ref=e177]
+                        - text: d6e0c95
+                    - link "main" [ref=e179] [cursor=pointer]:
+                      - /url: /beyerl/dj-lib-goodizer/tree/refs/heads/main
+                - generic [ref=e180]:
+                  - generic [ref=e181]: Status
+                  - text: Failure
+                - generic [ref=e182]:
+                  - generic [ref=e183]: Total duration
+                  - link "2m 2s" [ref=e184] [cursor=pointer]:
+                    - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/usage
+                - generic [ref=e185]:
+                  - generic [ref=e186]: Artifacts
+                  - text: –
+            - region "Workflow run graph" [ref=e187]:
+              - generic [ref=e189]:
+                - generic [ref=e191]:
+                  - heading "build.yml" [level=2] [ref=e192]:
+                    - link "build.yml" [ref=e193] [cursor=pointer]:
+                      - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/workflow
+                  - generic [ref=e194]: "on: push"
+                - generic [ref=e196]:
+                  - generic [ref=e197]:
+                    - img
+                    - img
+                    - generic [ref=e199]:
+                      - generic [ref=e201]: "Matrix: build"
+                      - 'button "failed: 2 jobs completed Show all jobs" [ref=e203] [cursor=pointer]':
+                        - generic [ref=e204]:
+                          - img "failed:" [ref=e206]
+                          - generic [ref=e208]: 2 jobs completed
+                        - generic [ref=e209]: Show all jobs
+                  - generic [ref=e210]:
+                    - paragraph [ref=e211]: Oh hello! Nice to see you.
+                    - paragraph [ref=e212]:
+                      - text: Made with ❤️ by
+                      - link [ref=e213] [cursor=pointer]:
+                        - /url: https://actions.github.io/humans.txt
+                        - text: humans.txt
+                - generic [ref=e214]:
+                  - button "Fit to window" [disabled] [ref=e215]:
+                    - img
+                  - generic [ref=e216]:
+                    - button "Zoom out" [disabled] [ref=e218]:
+                      - img
+                    - button "Zoom in" [disabled] [ref=e220]:
+                      - img
+            - region "Annotations" [ref=e221]:
+              - generic [ref=e222]:
+                - generic [ref=e224]:
+                  - heading "Annotations" [level=2] [ref=e225]
+                  - generic [ref=e226]: 1 error and 2 warnings
+                - table [ref=e227]:
+                  - rowgroup [ref=e228]:
+                    - row "windows-latest Process completed with exit code 1." [ref=e229]:
+                      - cell "windows-latest Process completed with exit code 1." [ref=e230]:
+                        - generic [ref=e231]:
+                          - img [ref=e233]
+                          - generic [ref=e235]:
+                            - link "windows-latest" [ref=e236] [cursor=pointer]:
+                              - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/job/82572604673#step:7:151
+                              - strong [ref=e237]: windows-latest
+                            - generic [ref=e240]: Process completed with exit code 1.
+                    - 'row "ubuntu-latest Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/ Show more" [ref=e241]':
+                      - 'cell "ubuntu-latest Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/ Show more" [ref=e242]':
+                        - generic [ref=e243]:
+                          - img [ref=e245]
+                          - generic [ref=e247]:
+                            - link "ubuntu-latest" [ref=e248] [cursor=pointer]:
+                              - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/job/82572604676#step:17:2
+                              - strong [ref=e249]: ubuntu-latest
+                            - generic [ref=e250]:
+                              - generic [ref=e252]:
+                                - text: "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see:"
+                                - link "https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/" [ref=e253] [cursor=pointer]:
+                                  - /url: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+                              - button "Show more" [ref=e254] [cursor=pointer]
+                    - 'row "windows-latest Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, seanmiddleditch/gha-setup-ninja@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/ Show more" [ref=e255]':
+                      - 'cell "windows-latest Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, seanmiddleditch/gha-setup-ninja@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/ Show more" [ref=e256]':
+                        - generic [ref=e257]:
+                          - img [ref=e259]
+                          - generic [ref=e261]:
+                            - link "windows-latest" [ref=e262] [cursor=pointer]:
+                              - /url: /beyerl/dj-lib-goodizer/actions/runs/27905227978/job/82572604673#step:17:2
+                              - strong [ref=e263]: windows-latest
+                            - generic [ref=e264]:
+                              - generic [ref=e266]:
+                                - text: "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, seanmiddleditch/gha-setup-ninja@v5. For more information see:"
+                                - link "https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/" [ref=e267] [cursor=pointer]:
+                                  - /url: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+                              - button "Show more" [ref=e268] [cursor=pointer]

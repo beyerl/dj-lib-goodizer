@@ -34,8 +34,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   resize(1100, 700);
 
   libraryView_ = new QTableView(this);
-  auto* model = new QStandardItemModel(0, libraryColumns().size(), this);
-  model->setHorizontalHeaderLabels(libraryColumns());
+  const QStringList columns = libraryColumns();
+  auto* model = new QStandardItemModel(0, static_cast<int>(columns.size()), this);
+  model->setHorizontalHeaderLabels(columns);
   libraryView_->setModel(model);
   libraryView_->setSortingEnabled(true);
   libraryView_->horizontalHeader()->setStretchLastSection(true);
@@ -45,7 +46,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
   statusBar()->showMessage(
       tr("Ready — core v%1. Import a folder to begin.")
-          .arg(djcore::coreVersionString()));
+          .arg(QString::fromUtf8(djcore::coreVersionString())));
 }
 
 void MainWindow::buildMenus() {
@@ -79,7 +80,7 @@ void MainWindow::onAbout() {
       tr("Desktop DJ Library Preparation Software\nCore v%1\n\n"
          "Standardizes, analyzes, and conditions audio libraries for "
          "consistent DJ playback.")
-          .arg(djcore::coreVersionString()));
+          .arg(QString::fromUtf8(djcore::coreVersionString())));
 }
 
 }  // namespace djapp
