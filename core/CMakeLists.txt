@@ -5,6 +5,11 @@ add_library(djcore
   src/audio/Dither.cpp
   src/audio/Resampler.cpp
   src/audio/WavIo.cpp
+  src/analysis/AnalysisPipeline.cpp
+  src/analysis/analyzers/SilenceDetector.cpp
+  src/analysis/analyzers/LoudnessDynamicsAnalyzer.cpp
+  src/analysis/analyzers/PhaseMonoAnalyzer.cpp
+  src/analysis/analyzers/StereoWidthAnalyzer.cpp
   src/profile/DefaultProfiles.cpp
 )
 

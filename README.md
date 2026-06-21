@@ -62,6 +62,9 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.3.0** — Milestone 3: analysis engine — single-decode fan-out pipeline
+  feeding silence, loudness/dynamics (BS.1770 K-weighting + gating, crest, DR),
+  mono-correlation/fold-down, and stereo-width/balance analyzers.
 - **v0.2.0** — Milestone 2: audio I/O — dependency-free WAV decode/encode,
   windowed-sinc resampler, TPDF dither; FFmpeg broad-format decode backend
   behind `DJ_WITH_AUDIO_BACKENDS` (verified by a dedicated Linux CI job).
