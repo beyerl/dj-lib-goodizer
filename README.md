@@ -81,10 +81,13 @@ Playwright tests under `tests/e2e/` drive.
 
 ## Status
 
-- **v0.10.0** — WebAssembly build target: the Qt app compiles to WASM and runs
+- **v0.11.0** — Playwright end-to-end tests (`tests/e2e/`) covering the major
+  browser flows — app load, *Load Demo Library*, track selection/detail,
+  dashboard summary, audit tab, profile switching, and About — run in CI against
+  the WebAssembly build via the `window.__djState`/`window.__djCmd` bridge.
+- **v0.10.x** — WebAssembly build target: the Qt app compiles to WASM and runs
   in Chrome (CI job `wasm`), with a browser-only *Load Demo Library* path and a
-  `window.__djState`/`window.__djCmd` test bridge for Playwright end-to-end
-  tests of the library/detail/dashboard/audit/profile flows.
+  `window.__djState`/`window.__djCmd` test bridge.
 - **v0.9.0** — Milestone 9: packaging — CMake install rules, CI artifacts on
   tags (windeployqt portable zip / Linux tarball), and production Inno Setup +
   AppImage scripts under `packaging/`.

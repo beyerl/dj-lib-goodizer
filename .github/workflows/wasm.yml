@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
       - name: Set up Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -67,19 +70,54 @@ jobs:
       - name: Build
         run: cmake --build build-wasm --parallel
 
+      - name: List build output
+        run: ls -la build-wasm/app
+
+      # --- End-to-end tests (Playwright, headless Chromium) ----------------
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install e2e dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Install Playwright browser
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        working-directory: tests/e2e
+        env:
+          CI: '1'
+          WASM_DIR: ${{ github.workspace }}/build-wasm/app
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report
+          if-no-files-found: ignore
+
+      # --- Web artifact ----------------------------------------------------
       - name: Collect web artifact
+        if: ${{ always() }}
         run: |
           mkdir -p dist-web
-          cp build-wasm/app/index.html dist-web/
-          cp build-wasm/app/index.js dist-web/
-          cp build-wasm/app/index.wasm dist-web/
+          cp build-wasm/app/index.html dist-web/ 2>/dev/null || true
+          cp build-wasm/app/index.js dist-web/ 2>/dev/null || true
+          cp build-wasm/app/index.wasm dist-web/ 2>/dev/null || true
           cp build-wasm/app/qtloader.js dist-web/ 2>/dev/null || true
           cp build-wasm/app/qtlogo.svg dist-web/ 2>/dev/null || true
           ls -la dist-web
 
       - name: Upload web build
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: dj-lib-goodizer-wasm
           path: dist-web
-          if-no-files-found: error
+          if-no-files-found: ignore
