@@ -83,6 +83,10 @@ Database::Database(const std::string& path) {
     if (db_) sqlite3_close(db_);
     throw DbError("cannot open database: " + msg);
   }
+  // Wait for a held lock instead of failing immediately with "database is
+  // locked": the import worker and the UI keep separate WAL connections to the
+  // same file, so brief write-lock contention is expected and benign.
+  sqlite3_busy_timeout(db_, 5000);
   exec("PRAGMA journal_mode=WAL;");
   exec("PRAGMA foreign_keys=ON;");
 }
