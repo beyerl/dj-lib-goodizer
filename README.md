@@ -62,6 +62,10 @@ The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 
 ## Status
 
+- **v0.7.0** — Milestone 7: Qt UI — database-backed Library View with
+  three-state flag colouring, Import Folder → background scan/analyze/persist,
+  Track Detail metrics panel, profile switching, Dashboard + Audit tabs.
+  (Waveform/goniometer/preview-playback visualizations deferred.)
 - **v0.6.0** — Milestone 6: processing engine — standardizing chain (silence
   trim → gain-only normalize → resample → encode), dry-run planning, true-peak
   gain limiting, and an audit-log repository.

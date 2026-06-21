@@ -30,17 +30,30 @@ TEST(ParallelFor, ProcessesEveryItem) {
 
 TEST(ParallelFor, CountsFailuresAndReportsProgress) {
   JobControl control;
-  std::atomic<std::size_t> lastCompleted{0};
-  std::size_t finalFailed = 0;
+  // Progress callbacks are serialized but not ordered by `completed`, so track
+  // the maxima rather than the last-executed callback's values.
+  std::atomic<std::size_t> maxCompleted{0};
+  std::atomic<std::size_t> maxFailed{0};
+  std::atomic<int> workerFailures{0};
+  const auto bump = [](std::atomic<std::size_t>& a, std::size_t v) {
+    std::size_t prev = a.load();
+    while (v > prev && !a.compare_exchange_weak(prev, v)) {
+    }
+  };
   parallelFor(
-      50, [&](std::size_t i) { return i % 2 == 0; },  // odd indices "fail"
-      control,
-      [&](std::size_t completed, std::size_t failed) {
-        lastCompleted.store(completed);
-        finalFailed = failed;
+      50,
+      [&](std::size_t i) {
+        const bool ok = i % 2 == 0;  // odd indices "fail"
+        if (!ok) workerFailures.fetch_add(1);
+        return ok;
+      },
+      control, [&](std::size_t completed, std::size_t failed) {
+        bump(maxCompleted, completed);
+        bump(maxFailed, failed);
       });
-  EXPECT_EQ(lastCompleted.load(), 50u);
-  EXPECT_EQ(finalFailed, 25u);
+  EXPECT_EQ(maxCompleted.load(), 50u);
+  EXPECT_EQ(maxFailed.load(), 25u);
+  EXPECT_EQ(workerFailures.load(), 25);
 }
 
 TEST(ParallelFor, CancelledBeforeRunDoesNothing) {

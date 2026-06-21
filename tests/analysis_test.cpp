@@ -5,8 +5,10 @@
 #include <string>
 
 #include "djcore/analysis/AnalysisPipeline.h"
+#include "djcore/analysis/Flags.h"
 #include "djcore/audio/AudioEncoder.h"
 #include "djcore/audio/PcmBuffer.h"
+#include "djcore/model/TargetProfile.h"
 
 using namespace djcore;
 
@@ -114,4 +116,29 @@ TEST(Analysis, LoudnessTracksGainAndDrIsGainInvariant) {
   // Crest factor of a sine is constant regardless of gain (~sqrt(2)).
   EXPECT_NEAR(loud.crestFactor, quiet.crestFactor, 0.05);
   EXPECT_NEAR(loud.crestFactor, std::sqrt(2.0), 0.05);
+}
+
+TEST(Flags, ThreeStateClassification) {
+  TargetProfile p;
+  p.loudnessTargetLufs = -14.0;
+  p.monoSafetyThreshold = 0.2;
+  p.widthTolerance = {0.5, 0.25};
+
+  AnalysisResult r;
+  r.integratedLufs = -14.3;  // within ±1 LU
+  EXPECT_EQ(loudnessFlag(r, p), FlagState::Ok);
+  r.integratedLufs = -15.5;  // within 2x band (1<|Δ|<=2)
+  EXPECT_EQ(loudnessFlag(r, p), FlagState::Review);
+  r.integratedLufs = -20.0;  // far off
+  EXPECT_EQ(loudnessFlag(r, p), FlagState::OutsideTarget);
+
+  r.phaseCorrelation = 0.5;  // >= threshold
+  EXPECT_EQ(monoFlag(r, p), FlagState::Ok);
+  r.phaseCorrelation = -0.5;  // well below threshold
+  EXPECT_EQ(monoFlag(r, p), FlagState::OutsideTarget);
+
+  // Unset stereo metrics (mono track) read as OK, never a false alarm.
+  AnalysisResult mono;
+  EXPECT_EQ(monoFlag(mono, p), FlagState::Ok);
+  EXPECT_EQ(widthFlag(mono, p), FlagState::Ok);
 }

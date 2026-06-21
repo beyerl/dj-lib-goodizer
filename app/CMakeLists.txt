@@ -6,6 +6,12 @@ qt_add_executable(dj-lib-goodizer
   main.cpp
   MainWindow.cpp
   MainWindow.h
+  AppDatabase.cpp
+  AppDatabase.h
+  LibraryModel.cpp
+  LibraryModel.h
+  ImportController.cpp
+  ImportController.h
 )
 
 target_link_libraries(dj-lib-goodizer PRIVATE djcore Qt6::Widgets)
