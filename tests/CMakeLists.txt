@@ -25,3 +25,22 @@ target_link_libraries(djcore_tests PRIVATE djcore GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(djcore_tests)
+
+# Qt-dependent tests for the app layer (background import lifecycle). Only built
+# when the Qt app is in scope; reuses the app's ImportSession/ImportController
+# sources and needs Qt's meta-object tooling (AUTOMOC) for their Q_OBJECTs.
+if(DJ_BUILD_APP)
+  find_package(Qt6 REQUIRED COMPONENTS Core)
+  qt_standard_project_setup()
+
+  qt_add_executable(djapp_tests
+    import_session_test.cpp
+    ${CMAKE_SOURCE_DIR}/app/ImportSession.cpp
+    ${CMAKE_SOURCE_DIR}/app/ImportSession.h
+    ${CMAKE_SOURCE_DIR}/app/ImportController.cpp
+    ${CMAKE_SOURCE_DIR}/app/ImportController.h
+  )
+  target_include_directories(djapp_tests PRIVATE ${CMAKE_SOURCE_DIR}/app)
+  target_link_libraries(djapp_tests PRIVATE djcore Qt6::Core GTest::gtest_main)
+  gtest_discover_tests(djapp_tests)
+endif()

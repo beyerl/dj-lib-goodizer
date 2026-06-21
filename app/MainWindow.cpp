@@ -18,11 +18,10 @@
 #include <QTabWidget>
 #include <QTableView>
 #include <QTextBrowser>
-#include <QThread>
 
 #include <ctime>
 
-#include "ImportController.h"
+#include "ImportSession.h"
 #include "LibraryModel.h"
 #include "djcore/Version.h"
 #include "djcore/analysis/Flags.h"
@@ -46,17 +45,17 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
   progress_->setMaximumWidth(240);
   progress_->setVisible(false);
   statusBar()->addPermanentWidget(progress_);
+
+  import_ = new ImportSession(this);
+  connect(import_, &ImportSession::progress, this, &MainWindow::onImportProgress);
+  connect(import_, &ImportSession::finished, this, &MainWindow::onImportFinished);
+
   statusBar()->showMessage(
       tr("Ready — core v%1. Import a folder to analyze your library.")
           .arg(QString::fromUtf8(djcore::coreVersionString())));
 }
 
-MainWindow::~MainWindow() {
-  if (importThread_) {
-    importThread_->quit();
-    importThread_->wait();
-  }
-}
+MainWindow::~MainWindow() = default;  // import_ (a child QObject) tears itself down
 
 void MainWindow::buildUi() {
   auto* tabs = new QTabWidget(this);
@@ -155,20 +154,12 @@ void MainWindow::reloadLibrary() {
 void MainWindow::onImportFolder() {
   const QString dir = QFileDialog::getExistingDirectory(this, tr("Select a folder to import"));
   if (dir.isEmpty()) return;
-  if (importThread_) return;  // an import is already running
+  if (import_->isRunning()) return;  // an import is already running
 
   progress_->setVisible(true);
   progress_->setRange(0, 0);  // busy until first progress
 
-  importThread_ = new QThread(this);
-  auto* worker = new ImportController(db_.path(), dir);
-  worker->moveToThread(importThread_);
-  connect(importThread_, &QThread::started, worker, &ImportController::run);
-  connect(worker, &ImportController::progress, this, &MainWindow::onImportProgress);
-  connect(worker, &ImportController::finished, this, &MainWindow::onImportFinished);
-  connect(worker, &ImportController::finished, importThread_, &QThread::quit);
-  connect(worker, &ImportController::finished, worker, &QObject::deleteLater);
-  importThread_->start();
+  import_->start(db_.path(), dir);
 }
 
 void MainWindow::onImportProgress(int done, int total, const QString& current) {
@@ -182,11 +173,8 @@ void MainWindow::onImportProgress(int done, int total, const QString& current) {
 }
 
 void MainWindow::onImportFinished(int imported, int failed) {
-  if (importThread_) {
-    importThread_->wait();
-    importThread_->deleteLater();
-    importThread_ = nullptr;
-  }
+  // No thread juggling here — ImportSession reaps its own thread. Blocking the
+  // GUI thread in this slot is exactly what caused the import freeze.
   progress_->setVisible(false);
   reloadLibrary();
   statusBar()->showMessage(tr("Imported %1 file(s), %2 failed.").arg(imported).arg(failed));

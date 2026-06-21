@@ -11,11 +11,11 @@ class QSortFilterProxyModel;
 class QTableView;
 class QTabWidget;
 class QTextBrowser;
-class QThread;
 
 namespace djapp {
 
 class LibraryModel;
+class ImportSession;
 
 // Primary window: Library / Dashboard / Audit tabs (spec Table 10). Import scans
 // a folder, analyzes on a worker thread, and persists to the project DB; results
@@ -78,7 +78,7 @@ class MainWindow : public QMainWindow {
   QTextBrowser* dashboard_ = nullptr;
   QTextBrowser* audit_ = nullptr;
   QProgressBar* progress_ = nullptr;
-  QThread* importThread_ = nullptr;
+  ImportSession* import_ = nullptr;
 };
 
 #ifdef __EMSCRIPTEN__

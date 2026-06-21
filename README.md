@@ -81,6 +81,12 @@ Playwright tests under `tests/e2e/` drive.
 
 ## Status
 
+- **v0.11.2** — Fix the import-progress freeze: the worker-thread lifecycle is
+  extracted into `ImportSession`, which reaps its thread via
+  `QThread::finished` → `deleteLater` instead of calling `QThread::wait()` from
+  the GUI-thread `finished` slot (a deadlock — `quit()` was queued behind that
+  slot and could never run). A Qt CI test (`djapp_tests`) runs a real threaded
+  import on Linux + Windows and watchdog-fails if the deadlock returns.
 - **v0.11.0** — Playwright end-to-end tests (`tests/e2e/`) covering the major
   browser flows — app load, *Load Demo Library*, track selection/detail,
   dashboard summary, audit tab, profile switching, and About — run in CI against

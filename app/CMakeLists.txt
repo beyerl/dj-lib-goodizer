@@ -12,6 +12,8 @@ qt_add_executable(dj-lib-goodizer
   LibraryModel.h
   ImportController.cpp
   ImportController.h
+  ImportSession.cpp
+  ImportSession.h
   WasmBridge.cpp  # body is #ifdef __EMSCRIPTEN__; compiles to nothing elsewhere
 )
 
