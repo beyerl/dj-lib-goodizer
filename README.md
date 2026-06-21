@@ -60,8 +60,31 @@ cmake --build build --parallel
 The audio backends (FFmpeg/libebur128/soxr/TagLib) are gated behind
 `-DDJ_WITH_AUDIO_BACKENDS=ON` and land in Milestone 2.
 
+### Web build (WebAssembly / Chrome)
+
+The Qt UI also compiles to WebAssembly so it runs in a browser — used as an
+automatable target for end-to-end tests and runtime-bug diagnosis. Built in CI
+(`.github/workflows/wasm.yml`) with Qt for WebAssembly + Emscripten:
+
+```sh
+"$QT_WASM_ROOT/bin/qt-cmake" -S . -B build-wasm -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DDJ_BUILD_APP=ON -DDJ_BUILD_TESTS=OFF
+cmake --build build-wasm --parallel
+# serve build-wasm/app/ and open index.html in Chrome
+```
+
+In the browser there is no native folder picker or filesystem, so *Import
+Folder…* is replaced by *Load Demo Library* (synthetic in-memory tracks). The
+desktop build is unchanged. A small JS bridge (`app/WasmBridge.cpp`) mirrors UI
+state to `window.__djState` and accepts commands via `window.__djCmd`, which the
+Playwright tests under `tests/e2e/` drive.
+
 ## Status
 
+- **v0.10.0** — WebAssembly build target: the Qt app compiles to WASM and runs
+  in Chrome (CI job `wasm`), with a browser-only *Load Demo Library* path and a
+  `window.__djState`/`window.__djCmd` test bridge for Playwright end-to-end
+  tests of the library/detail/dashboard/audit/profile flows.
 - **v0.9.0** — Milestone 9: packaging — CMake install rules, CI artifacts on
   tags (windeployqt portable zip / Linux tarball), and production Inno Setup +
   AppImage scripts under `packaging/`.

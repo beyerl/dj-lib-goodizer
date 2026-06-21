@@ -33,18 +33,30 @@ add_library(djcore
   src/db/AnalysisResultRepository.cpp
   src/db/ProfileRepository.cpp
   src/db/AuditLogRepository.cpp
-  src/jobs/AnalysisBatch.cpp
   src/processing/Operations.cpp
   src/processing/PerceptualOps.cpp
   src/processing/ProcessingEngine.cpp
   src/profile/DefaultProfiles.cpp
 )
 
-find_package(Threads REQUIRED)
+# The std::thread-based job scheduler isn't used by the single-threaded
+# WebAssembly app build; excluding it keeps that link free of pthread symbols.
+if(NOT EMSCRIPTEN)
+  target_sources(djcore PRIVATE src/jobs/AnalysisBatch.cpp)
+endif()
+
+# Emscripten provides threading through -pthread (not via the system Threads
+# package), and the WASM build is single-threaded, so skip the lookup there.
+if(NOT EMSCRIPTEN)
+  find_package(Threads REQUIRED)
+endif()
 
 target_include_directories(djcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(djcore PUBLIC cxx_std_20)
-target_link_libraries(djcore PUBLIC sqlite3 Threads::Threads)
+target_link_libraries(djcore PUBLIC sqlite3)
+if(NOT EMSCRIPTEN)
+  target_link_libraries(djcore PUBLIC Threads::Threads)
+endif()
 
 # Broad-format decode/encode (FFmpeg) + libsoxr/libebur128/TagLib are layered in
 # under this flag. The dependency-free WAV backend above is always available.

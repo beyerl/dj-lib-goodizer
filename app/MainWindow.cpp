@@ -11,18 +11,26 @@
 #include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QFileInfo>
+#include <QItemSelectionModel>
 #include <QString>
+#include <QStringList>
 #include <QTabWidget>
 #include <QTableView>
 #include <QTextBrowser>
 #include <QThread>
 
+#include <ctime>
+
 #include "ImportController.h"
 #include "LibraryModel.h"
 #include "djcore/Version.h"
 #include "djcore/analysis/Flags.h"
+#include "djcore/db/AnalysisResultRepository.h"
 #include "djcore/db/ProfileRepository.h"
 #include "djcore/db/TrackRepository.h"
+#include "djcore/model/AnalysisResult.h"
+#include "djcore/model/Track.h"
 
 namespace djapp {
 
@@ -52,6 +60,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::buildUi() {
   auto* tabs = new QTabWidget(this);
+  tabs_ = tabs;
 
   // --- Library tab: table + detail panel ---
   model_ = new LibraryModel(this);
@@ -90,8 +99,15 @@ void MainWindow::buildUi() {
 
 void MainWindow::buildMenus() {
   QMenu* file = menuBar()->addMenu(tr("&File"));
+#ifdef __EMSCRIPTEN__
+  // No native folder picker / filesystem in the browser: offer an in-memory
+  // demo library instead so the same Library/Dashboard/Audit flows are usable.
+  QAction* demo = file->addAction(tr("&Load Demo Library"));
+  connect(demo, &QAction::triggered, this, &MainWindow::loadDemoLibrary);
+#else
   QAction* import = file->addAction(tr("&Import Folder…"));
   connect(import, &QAction::triggered, this, &MainWindow::onImportFolder);
+#endif
   file->addSeparator();
   QAction* quit = file->addAction(tr("&Quit"));
   connect(quit, &QAction::triggered, qApp, &QApplication::quit);
@@ -254,13 +270,158 @@ void MainWindow::updateDashboard() {
   dashboard_->setHtml(html);
 }
 
+QString MainWindow::aboutText() const {
+  return tr("Desktop DJ Library Preparation Software\nCore v%1\n\n"
+            "Standardizes, analyzes, and conditions audio libraries for "
+            "consistent DJ playback.")
+      .arg(QString::fromUtf8(djcore::coreVersionString()));
+}
+
 void MainWindow::onAbout() {
-  QMessageBox::about(
-      this, tr("About DJ Library Goodizer"),
-      tr("Desktop DJ Library Preparation Software\nCore v%1\n\n"
-         "Standardizes, analyzes, and conditions audio libraries for consistent "
-         "DJ playback.")
-          .arg(QString::fromUtf8(djcore::coreVersionString())));
+  QMessageBox::about(this, tr("About DJ Library Goodizer"), aboutText());
+}
+
+// --- Demo library (browser builds) ------------------------------------------
+
+void MainWindow::loadDemoLibrary() {
+  // A small, deterministic corpus that spans the flag states the UI colours:
+  // in/around/outside the loudness + dynamics targets, plus mono-risk and
+  // wide-stereo tracks. No filesystem, threads, or audio decode — safe in the
+  // browser and reproducible for end-to-end tests.
+  struct Demo {
+    const char* file;
+    const char* container;
+    const char* codec;
+    int rate;
+    int bits;
+    int channels;
+    double lufs;
+    double truePeak;
+    double crest;
+    double dr;
+    long lead;
+    long trail;
+    bool stereo;
+    double corr;
+    double width;
+    double balance;
+  };
+  static const Demo kDemo[] = {
+      {"01 Opening Set.flac", "flac", "flac", 44100, 16, 2, -14.1, -1.2, 12.0,
+       9.0, 120, 350, true, 0.62, 0.48, 0.3},
+      {"02 Peak Time Banger.wav", "wav", "pcm_s16le", 44100, 16, 2, -7.8, -0.1,
+       6.2, 5.0, 12, 40, true, 0.55, 0.41, -0.2},
+      {"03 Deep Roller.aiff", "aiff", "pcm_s24be", 48000, 24, 2, -16.9, -2.4,
+       14.5, 11.5, 540, 900, true, 0.71, 0.52, 0.1},
+      {"04 Vocal Acappella.flac", "flac", "flac", 44100, 16, 1, -13.2, -1.0,
+       10.1, 8.5, 30, 60, false, 0.0, 0.0, 0.0},
+      {"05 Wide Synthwave.wav", "wav", "pcm_s24le", 44100, 24, 2, -12.7, -0.6,
+       11.2, 9.5, 80, 200, true, -0.15, 0.93, 0.0},
+      {"06 Lopsided Mix.mp3", "mp3", "mp3", 44100, 0, 2, -10.4, -0.3, 8.0, 6.5,
+       8, 15, true, 0.48, 0.5, 4.6},
+      {"07 Quiet Interlude.flac", "flac", "flac", 44100, 16, 2, -22.5, -6.0,
+       16.0, 13.0, 1200, 1500, true, 0.80, 0.44, 0.0},
+      {"08 Mono Risk Bootleg.mp3", "mp3", "mp3", 44100, 0, 2, -9.1, -0.2, 7.4,
+       6.0, 5, 10, true, -0.62, 0.5, 0.4},
+  };
+
+  djcore::TrackRepository tracks(db_.db());
+  djcore::AnalysisResultRepository results(db_.db());
+  const auto now = static_cast<std::int64_t>(std::time(nullptr));
+
+  for (const Demo& d : kDemo) {
+    djcore::Track t;
+    t.sourcePath = std::string("demo://") + d.file;
+    t.format.container = d.container;
+    t.format.codec = d.codec;
+    t.format.sampleRate = d.rate;
+    t.format.bitDepth = d.bits;
+    t.format.channels = d.channels;
+    t.format.sourceIsLossy = (std::string(d.codec) == "mp3");
+    t.importedAtUnix = now;
+    const std::int64_t id = tracks.insert(t);
+
+    djcore::AnalysisResult r;
+    r.leadingSilenceMs = d.lead;
+    r.trailingSilenceMs = d.trail;
+    r.integratedLufs = d.lufs;
+    r.truePeakDbtp = d.truePeak;
+    r.crestFactor = d.crest;
+    r.drValue = d.dr;
+    if (d.stereo) {
+      r.phaseCorrelation = d.corr;
+      r.monoFolddownDeltaDb = (d.corr < 0 ? -3.5 : -0.6);
+      r.stereoWidth = d.width;
+      r.lrBalanceDb = d.balance;
+    }
+    r.analyzerVersion = djcore::kAnalyzerVersion;
+    r.analyzedAtUnix = now;
+    results.upsert(id, r);
+  }
+
+  reloadLibrary();
+  setCurrentTab(0);
+  statusBar()->showMessage(
+      tr("Loaded demo library — %1 track(s).").arg(libraryRowCount()));
+}
+
+// --- Test/automation accessors ----------------------------------------------
+
+int MainWindow::libraryRowCount() const { return model_ ? model_->rowCount() : 0; }
+
+void MainWindow::selectRow(int sourceRow) {
+  if (!model_ || sourceRow < 0 || sourceRow >= model_->rowCount()) return;
+  const QModelIndex src = model_->index(sourceRow, 0);
+  const QModelIndex view = proxy_->mapFromSource(src);
+  table_->selectionModel()->select(
+      view, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+  table_->setCurrentIndex(view);
+}
+
+void MainWindow::setCurrentTab(int index) {
+  if (tabs_ && index >= 0 && index < tabs_->count()) tabs_->setCurrentIndex(index);
+}
+
+int MainWindow::currentTab() const { return tabs_ ? tabs_->currentIndex() : -1; }
+
+void MainWindow::setProfileByIndex(int index) { setActiveProfile(index); }
+
+QString MainWindow::statusText() const { return statusBar()->currentMessage(); }
+
+QString MainWindow::detailPlainText() const {
+  return detail_ ? detail_->toPlainText() : QString();
+}
+
+QString MainWindow::dashboardPlainText() const {
+  return dashboard_ ? dashboard_->toPlainText() : QString();
+}
+
+QString MainWindow::auditPlainText() const {
+  return audit_ ? audit_->toPlainText() : QString();
+}
+
+QString MainWindow::selectedFileName() const {
+  if (!table_ || !table_->selectionModel()) return {};
+  const QModelIndexList sel = table_->selectionModel()->selectedRows();
+  if (sel.isEmpty()) return {};
+  const int srcRow = proxy_->mapToSource(sel.first()).row();
+  const LibraryRow* row = model_->rowAt(srcRow);
+  if (!row) return {};
+  return QFileInfo(QString::fromStdString(row->track.sourcePath)).fileName();
+}
+
+QString MainWindow::activeProfileName() const {
+  return QString::fromStdString(activeProfile_.name);
+}
+
+double MainWindow::activeProfileTargetLufs() const {
+  return activeProfile_.loudnessTargetLufs;
+}
+
+QStringList MainWindow::profileNames() const {
+  QStringList names;
+  for (const auto& p : profiles_) names << QString::fromStdString(p.name);
+  return names;
 }
 
 }  // namespace djapp

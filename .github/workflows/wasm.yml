@@ -1,0 +1,83 @@
+name: wasm
+
+# Builds the Qt GUI as a WebAssembly module that runs in a browser (Chrome).
+# This is the build target the browser-based end-to-end tests run against; it
+# lets us reproduce and diagnose runtime UI bugs (e.g. the import progress bar)
+# in an automatable environment.
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+# Qt 6.7.x targets this Emscripten release; keep them in lock-step.
+env:
+  QT_VERSION: 6.7.2
+  EM_VERSION: 3.1.50
+
+jobs:
+  wasm-build:
+    name: wasm (chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EM_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      # qt-cmake needs a matching host (desktop) Qt for its build tools, plus the
+      # wasm Qt for the actual target. Install desktop first and remember its
+      # path, then install wasm (which becomes the active QT_ROOT_DIR).
+      - name: Install Qt (host / desktop)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Remember host Qt path
+        run: echo "QT_HOST_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+
+      - name: Install Qt (wasm)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: wasm
+          arch: wasm_singlethread
+          cache: true
+
+      - name: Configure (qt-cmake / Emscripten)
+        run: >
+          "$QT_ROOT_DIR/bin/qt-cmake" -S . -B build-wasm -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DQT_HOST_PATH="$QT_HOST_PATH"
+          -DDJ_BUILD_APP=ON
+          -DDJ_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build-wasm --parallel
+
+      - name: Collect web artifact
+        run: |
+          mkdir -p dist-web
+          cp build-wasm/app/index.html dist-web/
+          cp build-wasm/app/index.js dist-web/
+          cp build-wasm/app/index.wasm dist-web/
+          cp build-wasm/app/qtloader.js dist-web/ 2>/dev/null || true
+          cp build-wasm/app/qtlogo.svg dist-web/ 2>/dev/null || true
+          ls -la dist-web
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dj-lib-goodizer-wasm
+          path: dist-web
+          if-no-files-found: error
