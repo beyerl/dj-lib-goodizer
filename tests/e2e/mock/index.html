@@ -1,0 +1,134 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>DJ Library Goodizer (mock)</title>
+<body>
+  <h1>DJ Library Goodizer — local mock</h1>
+  <p>
+    Faithful JS stand-in of the WebAssembly build's
+    <code>window.__djState</code> / <code>window.__djCmd</code> contract
+    (see <code>app/WasmBridge.cpp</code>). Used to validate the Playwright
+    specs locally without compiling Qt for WebAssembly.
+  </p>
+  <pre id="state"></pre>
+  <script>
+    // --- Must mirror app/WasmBridge.cpp + MainWindow.cpp behaviour ----------
+    const VERSION = '0.11.0';
+    const PROFILES = [
+      { name: 'Club / USB', lufs: -14.0 },
+      { name: 'Mono Broadcast', lufs: -16.0 },
+      { name: 'Archival / Lossless', lufs: -18.0 },
+    ];
+    // Subset of MainWindow::loadDemoLibrary()'s synthetic corpus.
+    const DEMO = [
+      { file: '01 Opening Set.flac', container: 'flac', codec: 'flac', rate: 44100, ch: 2, lufs: -14.1, tp: -1.2, crest: 12.0, dr: 9.0 },
+      { file: '02 Peak Time Banger.wav', container: 'wav', codec: 'pcm_s16le', rate: 44100, ch: 2, lufs: -7.8, tp: -0.1, crest: 6.2, dr: 5.0 },
+      { file: '03 Deep Roller.aiff', container: 'aiff', codec: 'pcm_s24be', rate: 48000, ch: 2, lufs: -16.9, tp: -2.4, crest: 14.5, dr: 11.5 },
+      { file: '04 Vocal Acappella.flac', container: 'flac', codec: 'flac', rate: 44100, ch: 1, lufs: -13.2, tp: -1.0, crest: 10.1, dr: 8.5 },
+      { file: '05 Wide Synthwave.wav', container: 'wav', codec: 'pcm_s24le', rate: 44100, ch: 2, lufs: -12.7, tp: -0.6, crest: 11.2, dr: 9.5 },
+      { file: '06 Lopsided Mix.mp3', container: 'mp3', codec: 'mp3', rate: 44100, ch: 2, lufs: -10.4, tp: -0.3, crest: 8.0, dr: 6.5 },
+      { file: '07 Quiet Interlude.flac', container: 'flac', codec: 'flac', rate: 44100, ch: 2, lufs: -22.5, tp: -6.0, crest: 16.0, dr: 13.0 },
+      { file: '08 Mono Risk Bootleg.mp3', container: 'mp3', codec: 'mp3', rate: 44100, ch: 2, lufs: -9.1, tp: -0.2, crest: 7.4, dr: 6.0 },
+    ];
+    const TAB_NAMES = ['Library', 'Dashboard', 'Audit Log'];
+
+    let activeProfile = 0;
+    let loaded = false;
+    let selected = -1;
+    let curTab = 0;
+    let aboutShown = false;
+    let statusText =
+      `Ready — core v${VERSION}. Import a folder to analyze your library.`;
+
+    const fix = (n) => n.toFixed(1);
+
+    function dashboardText() {
+      if (!loaded) {
+        return 'No tracks yet. Import a folder to populate the library.';
+      }
+      const lufs = DEMO.map((d) => d.lufs);
+      const min = Math.min(...lufs), max = Math.max(...lufs);
+      const p = PROFILES[activeProfile];
+      return [
+        'Library Summary',
+        `Tracks: ${DEMO.length} (${DEMO.length} analyzed)`,
+        `Loudness range: ${fix(min)} to ${fix(max)} LUFS`,
+        'Mono-risk tracks: 2',
+        `Active profile: ${p.name} (target ${fix(p.lufs)} LUFS)`,
+      ].join('\n');
+    }
+
+    function detailText() {
+      if (selected < 0) return 'Select a track to see its metrics.';
+      const d = DEMO[selected];
+      return [
+        `demo://${d.file}`,
+        `Format: ${d.container} / ${d.codec} — ${d.rate} Hz, ${d.ch} ch`,
+        `Integrated loudness ${fix(d.lufs)} LUFS`,
+        `True peak ${fix(d.tp)} dBFS`,
+        `Crest factor ${d.crest.toFixed(2)}`,
+        `DR value ${fix(d.dr)} dB`,
+      ].join('\n');
+    }
+
+    function aboutText() {
+      return aboutShown
+        ? `Desktop DJ Library Preparation Software\nCore v${VERSION}\n\n` +
+            'Standardizes, analyzes, and conditions audio libraries for ' +
+            'consistent DJ playback.'
+        : '';
+    }
+
+    function publish() {
+      window.__djState = {
+        ready: true,
+        version: VERSION,
+        windowTitle: 'DJ Library Goodizer',
+        rowCount: loaded ? DEMO.length : 0,
+        currentTab: curTab,
+        tabName: TAB_NAMES[curTab] || '',
+        statusText,
+        activeProfile: PROFILES[activeProfile].name,
+        profileTargetLufs: PROFILES[activeProfile].lufs,
+        selectedFile: selected >= 0 ? DEMO[selected].file : '',
+        detailText: detailText(),
+        dashboardText: dashboardText(),
+        auditText: 'No processing has been performed yet.',
+        aboutText: aboutText(),
+        profiles: PROFILES.map((p) => p.name),
+      };
+      document.getElementById('state').textContent = JSON.stringify(
+        window.__djState, null, 2);
+    }
+
+    function dispatch(cmd) {
+      const [verb, arg] = cmd.split(':');
+      const n = arg === undefined ? -1 : parseInt(arg, 10);
+      if (verb === 'loadDemo') {
+        loaded = true;
+        curTab = 0;
+        statusText = `Loaded demo library — ${DEMO.length} track(s).`;
+      } else if (verb === 'selectTrack') {
+        if (loaded && n >= 0 && n < DEMO.length) selected = n;
+      } else if (verb === 'setTab') {
+        if (n >= 0 && n < TAB_NAMES.length) curTab = n;
+      } else if (verb === 'setProfile') {
+        if (n >= 0 && n < PROFILES.length) {
+          activeProfile = n;
+          statusText = `Active profile: ${PROFILES[n].name}`;
+        }
+      } else if (verb === 'about') {
+        aboutShown = true;
+      }
+    }
+
+    // Pump mirrors the QTimer in WasmBridge.cpp (drain one command / tick).
+    setInterval(() => {
+      const cmd = window.__djCmd || '';
+      window.__djCmd = '';
+      if (cmd) dispatch(String(cmd));
+      publish();
+    }, 50);
+    publish();
+  </script>
+</body>
+</html>

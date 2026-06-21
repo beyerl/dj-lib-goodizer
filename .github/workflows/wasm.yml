@@ -45,11 +45,13 @@ jobs:
       - name: Remember host Qt path
         run: echo "QT_HOST_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
 
+      # Qt >= 6.7 publishes the WebAssembly packages under the host-agnostic
+      # "all_os" host (not "linux"), so aqtinstall must be told host: all_os.
       - name: Install Qt (wasm)
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
-          host: linux
+          host: all_os
           target: wasm
           arch: wasm_singlethread
           cache: true
