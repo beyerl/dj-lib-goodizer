@@ -95,6 +95,9 @@ class MainWindow : public QMainWindow {
 // Installs the JS test bridge (window.__djState / window.__djCmd). See
 // WasmBridge.cpp. Called from main() in the WebAssembly build only.
 void installWasmBridge(MainWindow* window);
+// Opens the browser folder picker (must be called from a user-gesture slot,
+// e.g. a menu action). Defined in WasmBridge.cpp.
+void triggerFolderPicker();
 #endif
 
 }  // namespace djapp

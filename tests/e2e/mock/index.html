@@ -133,22 +133,16 @@
       }
     }
 
-    // Mirror the WASM bridge's page glue (stubbed FS) so the picker button is
-    // present locally too; the real build writes bytes into Emscripten MEMFS.
+    // Mirror the WASM bridge's page glue (stubbed FS). The picker is exposed as
+    // window.__djPickFolder() and invoked from the File menu in the real build.
     window.__djWriteFile = function () { return true; };
     (function () {
       const exts = ['wav','wave','flac','mp3','aiff','aif','ogg','aac','m4a','alac'];
-      const btn = document.createElement('button');
-      btn.id = 'dj-folder-btn';
-      btn.textContent = '📁 Load Folder from Disk';
-      btn.setAttribute('style',
-        'position:fixed;top:8px;left:8px;z-index:99999;padding:6px 10px;font:14px sans-serif;cursor:pointer');
       const input = document.createElement('input');
       input.type = 'file';
       input.multiple = true;
       input.setAttribute('webkitdirectory', '');
       input.style.display = 'none';
-      btn.onclick = function () { input.value = ''; input.click(); };
       input.onchange = async function () {
         const paths = [];
         for (const f of Array.prototype.slice.call(input.files || [])) {
@@ -160,8 +154,8 @@
         window.__djDiskPaths = paths;
         window.__djCmd = 'importDisk';
       };
-      document.body.appendChild(btn);
       document.body.appendChild(input);
+      window.__djPickFolder = function () { input.value = ''; input.click(); };
     })();
 
     // Pump mirrors the QTimer in WasmBridge.cpp (drain one command / tick).

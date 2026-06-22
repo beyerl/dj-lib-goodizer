@@ -96,8 +96,9 @@ test('loading a file from disk imports it via the real decode pipeline', async (
   expect(s.statusText).toContain('from disk');
 });
 
-test('the folder-picker button is present', async ({ page }) => {
-  await expect(page.locator('#dj-folder-btn')).toHaveText(/Load Folder from Disk/);
+test('the folder picker hook is exposed for the File menu action', async ({ page }) => {
+  const hookType = await page.evaluate(() => typeof (window as any).__djPickFolder);
+  expect(hookType).toBe('function');
 });
 
 test('About surfaces the application description', async ({ page }) => {

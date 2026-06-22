@@ -105,10 +105,12 @@ void MainWindow::buildUi() {
 void MainWindow::buildMenus() {
   QMenu* file = menuBar()->addMenu(tr("&File"));
 #ifdef __EMSCRIPTEN__
-  // No native folder picker / filesystem in the browser: offer an in-memory
-  // demo library instead so the same Library/Dashboard/Audit flows are usable.
+  // No native folder dialog in the browser. Offer an in-memory demo library and
+  // a folder picker (HTML file input) that imports real files from disk.
   QAction* demo = file->addAction(tr("&Load Demo Library"));
   connect(demo, &QAction::triggered, this, &MainWindow::loadDemoLibrary);
+  QAction* disk = file->addAction(tr("Load &Folder from Disk…"));
+  connect(disk, &QAction::triggered, this, [] { triggerFolderPicker(); });
 #else
   QAction* import = file->addAction(tr("&Import Folder…"));
   connect(import, &QAction::triggered, this, &MainWindow::onImportFolder);

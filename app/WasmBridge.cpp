@@ -135,10 +135,11 @@ void dispatch(MainWindow* w, const std::string& cmd) {
 
 // Page-side glue: a MEMFS writer (the Emscripten FS object is in module scope
 // here, so we hand the page a closure that writes into the same virtual
-// filesystem the C++ decoder reads) plus a folder-picker button. Picked audio
-// files are written to /disk/<relpath>, then "importDisk" is queued for the
-// pump to import them. Passed as a raw string literal (not EM_ASM) so the
-// commas in the JS don't get parsed as macro arguments.
+// filesystem the C++ decoder reads) plus a hidden folder-picker input exposed
+// as window.__djPickFolder(). The File-menu action calls that within its
+// user-gesture slot; picked audio files are written to /disk/<relpath>, then
+// "importDisk" is queued for the pump to import them. Passed as a raw string
+// literal (not EM_ASM) so the commas in the JS don't get parsed as macro args.
 static void installFolderPicker() {
   emscripten_run_script(R"JS(
     (function () {
@@ -150,21 +151,14 @@ static void installFolderPicker() {
           return true;
         } catch (e) { console.error('djWriteFile failed', path, e); return false; }
       };
-      if (document.getElementById('dj-folder-btn')) return;
+      if (window.__djPickFolder) return;
       var exts = ['wav','wave','flac','mp3','aiff','aif','ogg','aac','m4a','alac'];
-      var btn = document.createElement('button');
-      btn.id = 'dj-folder-btn';
-      btn.textContent = '📁 Load Folder from Disk';
-      btn.setAttribute('style',
-        'position:fixed;top:8px;left:8px;z-index:99999;padding:6px 10px;' +
-        'font:14px sans-serif;cursor:pointer');
       var input = document.createElement('input');
       input.type = 'file';
       input.multiple = true;
       input.setAttribute('webkitdirectory', '');
       input.webkitdirectory = true;
       input.style.display = 'none';
-      btn.onclick = function () { input.value = ''; input.click(); };
       input.onchange = async function () {
         var files = Array.prototype.slice.call(input.files || []);
         var paths = [];
@@ -182,10 +176,16 @@ static void installFolderPicker() {
         window.__djDiskPaths = paths;
         window.__djCmd = 'importDisk';
       };
-      document.body.appendChild(btn);
       document.body.appendChild(input);
+      window.__djPickFolder = function () { input.value = ''; input.click(); };
     })();
   )JS");
+}
+
+// Opens the browser folder picker. Invoked from the File-menu action's slot so
+// the input.click() runs inside the user gesture Chrome requires.
+void triggerFolderPicker() {
+  emscripten_run_script("window.__djPickFolder && window.__djPickFolder();");
 }
 
 void installWasmBridge(MainWindow* w) {
