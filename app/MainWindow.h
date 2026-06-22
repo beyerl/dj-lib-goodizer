@@ -46,6 +46,11 @@ class MainWindow : public QMainWindow {
   // importDiskFiles — exercises the real disk-load path without a file picker
   // (used by the browser e2e tests).
   void loadDiskSample();
+  // Runs the standardizing chain as a dry run against the active profile for
+  // every analyzed track (no files written), reports the planned changes in the
+  // Audit Log tab, and records audit entries (FR — corrective processing,
+  // NFR-SAFE-2 dry run / NFR-SAFE-3 audit).
+  void standardizeLibrary();
   int libraryRowCount() const;
   void selectRow(int sourceRow);
   void setCurrentTab(int index);

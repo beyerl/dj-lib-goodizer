@@ -82,7 +82,8 @@ pipeline. (Only WAV decodes without the FFmpeg backend; other formats are
 counted as failed.) The desktop build is unchanged. A small JS bridge
 (`app/WasmBridge.cpp`) mirrors UI state to `window.__djState` and accepts
 commands via `window.__djCmd`, which the Playwright tests under `tests/e2e/`
-drive.
+drive. *Process → Standardize Library* runs the standardizing chain as a dry run
+and reports the planned per-track changes in the Audit Log.
 
 On every push to `main`, the `wasm` workflow deploys the built app to GitHub
 Pages: **https://beyerl.github.io/dj-lib-goodizer/**. (Requires the repo's Pages
@@ -90,6 +91,13 @@ source to be set to *GitHub Actions* under Settings → Pages.)
 
 ## Status
 
+- **v0.14.0** — *Process → Standardize Library (Dry Run)* runs the standardizing
+  chain against the active profile for every analyzed track and reports the
+  planned changes (resample/requantize/trim/gain) in the Audit Log, recording
+  audit entries — the corrective-processing step was previously unreachable from
+  the UI. Also fixes browser disk loading: the MEMFS writer is now defined in
+  module scope (via `EM_ASM`) so picked files are actually written (the
+  `emscripten_run_script` eval scope couldn't see Emscripten's `FS`).
 - **v0.13.0** — Browser folder loading: a *Load Folder from Disk* button picks
   a folder (`webkitdirectory`), writes the audio files into MEMFS, and imports
   them through the real decode/analyze pipeline (WAV decodes; other formats need

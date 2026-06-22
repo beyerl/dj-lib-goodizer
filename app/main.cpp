@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
   QApplication app(argc, argv);
   QApplication::setApplicationName("DJ Library Goodizer");
   QApplication::setOrganizationName("dj-lib-goodizer");
-  QApplication::setApplicationVersion("0.13.1");
+  QApplication::setApplicationVersion("0.14.0");
 
   djapp::MainWindow window;
   window.show();

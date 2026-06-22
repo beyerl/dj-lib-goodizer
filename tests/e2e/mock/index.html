@@ -37,6 +37,7 @@
     let selected = -1;
     let curTab = 0;
     let aboutShown = false;
+    let auditTextValue = 'No processing has been performed yet.';
     let statusText =
       `Ready — core v${VERSION}. Import a folder to analyze your library.`;
 
@@ -93,7 +94,7 @@
         selectedFile: selected >= 0 ? DEMO[selected].file : '',
         detailText: detailText(),
         dashboardText: dashboardText(),
-        auditText: 'No processing has been performed yet.',
+        auditText: auditTextValue,
         aboutText: aboutText(),
         profiles: PROFILES.map((p) => p.name),
       };
@@ -130,6 +131,18 @@
         curTab = 0;
         statusText =
           `Imported ${paths.length} file(s) from disk, 0 failed.`;
+      } else if (verb === 'standardize') {
+        const planned = (loaded ? DEMO.length : 0) + diskCount;
+        if (planned === 0) {
+          statusText = 'Nothing to standardize — load a library first.';
+        } else {
+          auditTextValue =
+            `Standardization plan (dry run) — profile: ${PROFILES[activeProfile].name}\n` +
+            `${planned} track(s) planned.`;
+          curTab = 2;
+          statusText =
+            `Standardized ${planned} track(s) (dry run) — see Audit Log.`;
+        }
       }
     }
 

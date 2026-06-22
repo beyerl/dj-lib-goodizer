@@ -117,6 +117,8 @@ void dispatch(MainWindow* w, const std::string& cmd) {
     g_aboutShown = true;
   } else if (verb == "loadDiskSample") {
     w->loadDiskSample();
+  } else if (verb == "standardize") {
+    w->standardizeLibrary();
   } else if (verb == "importDisk") {
     // The folder picker already wrote the files into MEMFS; collect (and clear)
     // their paths and import them through the real decode pipeline.
@@ -141,16 +143,25 @@ void dispatch(MainWindow* w, const std::string& cmd) {
 // "importDisk" is queued for the pump to import them. Passed as a raw string
 // literal (not EM_ASM) so the commas in the JS don't get parsed as macro args.
 static void installFolderPicker() {
+  // The MEMFS writer must be defined in *module* scope so it can see the
+  // Emscripten `FS` object. emscripten_run_script() evals in page scope where
+  // `FS` is not visible, so define this helper via EM_ASM instead. (All commas
+  // here are inside parentheses, so EM_ASM's macro arg-splitting is safe.)
+  EM_ASM({
+    window.__djWriteFile = function (path, bytes) {
+      try {
+        var slash = path.lastIndexOf('/');
+        if (slash > 0) FS.mkdirTree(path.substring(0, slash));
+        FS.writeFile(path, bytes);
+        return true;
+      } catch (e) {
+        console.error('djWriteFile failed', path, e);
+        return false;
+      }
+    };
+  });
   emscripten_run_script(R"JS(
     (function () {
-      window.__djWriteFile = function (path, bytes) {
-        try {
-          var slash = path.lastIndexOf('/');
-          if (slash > 0) FS.mkdirTree(path.substring(0, slash));
-          FS.writeFile(path, bytes);
-          return true;
-        } catch (e) { console.error('djWriteFile failed', path, e); return false; }
-      };
       if (window.__djPickFolder) return;
       var exts = ['wav','wave','flac','mp3','aiff','aif','ogg','aac','m4a','alac'];
       var input = document.createElement('input');

@@ -96,6 +96,19 @@ test('loading a file from disk imports it via the real decode pipeline', async (
   expect(s.statusText).toContain('from disk');
 });
 
+test('Standardize Library produces a dry-run plan in the audit log', async ({ page }) => {
+  await sendCmd(page, 'loadDemo');
+  await pollState(page, 'rowCount').toBe(8);
+
+  await sendCmd(page, 'standardize');
+  await pollState(page, 'currentTab').toBe(2);
+
+  const s = await getState(page);
+  expect(s.tabName).toBe('Audit Log');
+  expect(s.auditText).toContain('Standardization plan');
+  expect(s.statusText).toContain('Standardized 8 track(s)');
+});
+
 test('the folder picker hook is exposed for the File menu action', async ({ page }) => {
   const hookType = await page.evaluate(() => typeof (window as any).__djPickFolder);
   expect(hookType).toBe('function');

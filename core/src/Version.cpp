@@ -3,7 +3,7 @@
 namespace djcore {
 
 const char* coreVersionString() {
-  return "0.13.1";
+  return "0.14.0";
 }
 
 }  // namespace djcore

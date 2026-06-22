@@ -32,10 +32,14 @@
 #include "djcore/audio/AudioEncoder.h"
 #include "djcore/audio/PcmBuffer.h"
 #include "djcore/db/AnalysisResultRepository.h"
+#include "djcore/db/AuditLogRepository.h"
 #include "djcore/db/ProfileRepository.h"
 #include "djcore/db/TrackRepository.h"
 #include "djcore/model/AnalysisResult.h"
+#include "djcore/model/AuditLogEntry.h"
+#include "djcore/model/Enums.h"
 #include "djcore/model/Track.h"
+#include "djcore/processing/ProcessingEngine.h"
 
 namespace djapp {
 
@@ -118,6 +122,10 @@ void MainWindow::buildMenus() {
   file->addSeparator();
   QAction* quit = file->addAction(tr("&Quit"));
   connect(quit, &QAction::triggered, qApp, &QApplication::quit);
+
+  QMenu* process = menuBar()->addMenu(tr("&Process"));
+  QAction* standardize = process->addAction(tr("&Standardize Library (Dry Run)"));
+  connect(standardize, &QAction::triggered, this, &MainWindow::standardizeLibrary);
 
   QMenu* help = menuBar()->addMenu(tr("&Help"));
   connect(help->addAction(tr("&About")), &QAction::triggered, this, &MainWindow::onAbout);
@@ -415,6 +423,78 @@ void MainWindow::loadDiskSample() {
   djcore::encodeToFile(path, buf, djcore::EncodeSpec{"wav", 44100, 16, false});
 
   importDiskFiles({QString::fromStdString(path)});
+}
+
+void MainWindow::standardizeLibrary() {
+  const int n = model_ ? model_->rowCount() : 0;
+  if (n == 0) {
+    statusBar()->showMessage(tr("Nothing to standardize — load a library first."));
+    return;
+  }
+
+  djcore::ProcessingEngine engine(activeProfile_);
+  djcore::AuditLogRepository auditRepo(db_.db());
+  const auto now = static_cast<std::int64_t>(std::time(nullptr));
+
+  QString html =
+      QStringLiteral("<h3>Standardization plan (dry run) — profile: %1</h3>")
+          .arg(QString::fromStdString(activeProfile_.name).toHtmlEscaped());
+  html += QStringLiteral(
+      "<table cellpadding='4'><tr><td><b>File</b></td>"
+      "<td><b>Planned changes</b></td></tr>");
+
+  int planned = 0, changed = 0, conform = 0;
+  for (int i = 0; i < n; ++i) {
+    const LibraryRow* r = model_->rowAt(i);
+    if (!r || !r->analysis) continue;
+    const djcore::ProcessingChange c = engine.plan(r->track, *r->analysis);
+    ++planned;
+
+    QStringList ops;
+    if (c.containerChanged)
+      ops << tr("container %1→%2").arg(QString::fromStdString(c.fromContainer),
+                                       QString::fromStdString(c.toContainer));
+    if (c.resampled)
+      ops << tr("resample %1→%2 Hz").arg(c.fromRate).arg(c.toRate);
+    if (c.requantized)
+      ops << tr("requantize %1→%2-bit").arg(c.fromBits).arg(c.toBits);
+    if (c.trimmed)
+      ops << tr("trim %1/%2 ms").arg(c.trimLeadMs).arg(c.trimTailMs);
+    if (c.gainApplied)
+      ops << tr("gain %1 dB%2")
+                 .arg(QString::number(c.gainDb, 'f', 1),
+                      c.gainLimitedForTruePeak ? tr(" (TP-limited)") : QString());
+    if (ops.isEmpty()) {
+      ops << tr("already conforms");
+      ++conform;
+    } else {
+      ++changed;
+    }
+
+    const QString file =
+        QFileInfo(QString::fromStdString(r->track.sourcePath)).fileName();
+    html += QStringLiteral("<tr><td>%1</td><td>%2</td></tr>")
+                .arg(file.toHtmlEscaped(), ops.join(", "));
+
+    djcore::AuditLogEntry e;
+    e.trackId = r->track.id;
+    e.operation = djcore::OperationType::ResampleTranscode;
+    e.paramsJson = ops.join("; ").toStdString();
+    e.timestampUnix = now;
+    auditRepo.insert(e);
+  }
+  html += QStringLiteral("</table>");
+  html += QStringLiteral(
+              "<p><b>%1</b> track(s) planned — <b>%2</b> need changes, "
+              "<b>%3</b> already conform. (Dry run: no files written.)</p>")
+              .arg(planned)
+              .arg(changed)
+              .arg(conform);
+
+  audit_->setHtml(html);
+  setCurrentTab(2);
+  statusBar()->showMessage(
+      tr("Standardized %1 track(s) (dry run) — see Audit Log.").arg(planned));
 }
 
 // --- Test/automation accessors ----------------------------------------------
