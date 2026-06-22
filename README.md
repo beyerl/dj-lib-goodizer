@@ -73,11 +73,16 @@ cmake --build build-wasm --parallel
 # serve build-wasm/app/ and open index.html in Chrome
 ```
 
-In the browser there is no native folder picker or filesystem, so *Import
-Folder…* is replaced by *Load Demo Library* (synthetic in-memory tracks). The
-desktop build is unchanged. A small JS bridge (`app/WasmBridge.cpp`) mirrors UI
-state to `window.__djState` and accepts commands via `window.__djCmd`, which the
-Playwright tests under `tests/e2e/` drive.
+In the browser there is no native desktop folder dialog, so the menu offers
+*Load Demo Library* (synthetic in-memory tracks) and the page shows a **Load
+Folder from Disk** button: it uses a `webkitdirectory` file input to pick a
+folder, writes the chosen audio files into Emscripten's in-memory filesystem
+(MEMFS), and imports them through the real `openDecoder → analyze → persist`
+pipeline. (Only WAV decodes without the FFmpeg backend; other formats are
+counted as failed.) The desktop build is unchanged. A small JS bridge
+(`app/WasmBridge.cpp`) mirrors UI state to `window.__djState` and accepts
+commands via `window.__djCmd`, which the Playwright tests under `tests/e2e/`
+drive.
 
 On every push to `main`, the `wasm` workflow deploys the built app to GitHub
 Pages: **https://beyerl.github.io/dj-lib-goodizer/**. (Requires the repo's Pages
@@ -85,6 +90,10 @@ source to be set to *GitHub Actions* under Settings → Pages.)
 
 ## Status
 
+- **v0.13.0** — Browser folder loading: a *Load Folder from Disk* button picks
+  a folder (`webkitdirectory`), writes the audio files into MEMFS, and imports
+  them through the real decode/analyze pipeline (WAV decodes; other formats need
+  the FFmpeg backend). Covered by a browser e2e test that imports a real WAV.
 - **v0.12.0** — Deploy the WebAssembly build to GitHub Pages from the `wasm`
   workflow on every push to `main`
   (https://beyerl.github.io/dj-lib-goodizer/).

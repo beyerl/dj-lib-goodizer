@@ -85,6 +85,21 @@ test('switching the active profile updates target and status', async ({ page }) 
   expect((await getState(page)).dashboardText).toContain('Mono Broadcast');
 });
 
+test('loading a file from disk imports it via the real decode pipeline', async ({ page }) => {
+  // loadDiskSample writes a real WAV into the (virtual) filesystem and imports
+  // it through openDecoder→analyze→persist — the same path the folder picker
+  // uses for user-selected files.
+  await sendCmd(page, 'loadDiskSample');
+  await pollState(page, 'rowCount').toBe(1);
+
+  const s = await getState(page);
+  expect(s.statusText).toContain('from disk');
+});
+
+test('the folder-picker button is present', async ({ page }) => {
+  await expect(page.locator('#dj-folder-btn')).toHaveText(/Load Folder from Disk/);
+});
+
 test('About surfaces the application description', async ({ page }) => {
   await sendCmd(page, 'about');
   await pollState(page, 'aboutText').toContain('DJ Library Preparation');

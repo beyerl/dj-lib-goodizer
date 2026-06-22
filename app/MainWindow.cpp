@@ -19,12 +19,18 @@
 #include <QTableView>
 #include <QTextBrowser>
 
+#include <cmath>
 #include <ctime>
+#include <filesystem>
 
 #include "ImportSession.h"
 #include "LibraryModel.h"
 #include "djcore/Version.h"
+#include "djcore/analysis/AnalysisPipeline.h"
 #include "djcore/analysis/Flags.h"
+#include "djcore/audio/AudioDecoder.h"
+#include "djcore/audio/AudioEncoder.h"
+#include "djcore/audio/PcmBuffer.h"
 #include "djcore/db/AnalysisResultRepository.h"
 #include "djcore/db/ProfileRepository.h"
 #include "djcore/db/TrackRepository.h"
@@ -351,6 +357,62 @@ void MainWindow::loadDemoLibrary() {
   setCurrentTab(0);
   statusBar()->showMessage(
       tr("Loaded demo library — %1 track(s).").arg(libraryRowCount()));
+}
+
+void MainWindow::importDiskFiles(const QStringList& paths) {
+  djcore::TrackRepository tracks(db_.db());
+  djcore::AnalysisResultRepository results(db_.db());
+  djcore::AnalysisPipeline pipeline;
+  const auto now = static_cast<std::int64_t>(std::time(nullptr));
+
+  int imported = 0;
+  int failed = 0;
+  for (const QString& qpath : paths) {
+    const std::string path = qpath.toStdString();
+    try {
+      auto decoder = djcore::openDecoder(path);
+      djcore::Track t;
+      t.sourcePath = path;
+      t.format = decoder->format();
+      t.importedAtUnix = now;
+      const std::int64_t id = tracks.insert(t);
+
+      djcore::AnalysisResult r = pipeline.analyze(*decoder);
+      r.analyzerVersion = djcore::kAnalyzerVersion;
+      r.analyzedAtUnix = now;
+      results.upsert(id, r);
+      ++imported;
+    } catch (...) {
+      ++failed;  // e.g. non-WAV without the FFmpeg backend, or a bad file
+    }
+  }
+
+  reloadLibrary();
+  setCurrentTab(0);
+  statusBar()->showMessage(
+      tr("Imported %1 file(s) from disk, %2 failed.").arg(imported).arg(failed));
+}
+
+void MainWindow::loadDiskSample() {
+  // Write a short, valid WAV to the (virtual) filesystem, then import it through
+  // the real decode→analyze path — proving disk loading works end-to-end in the
+  // browser without driving the native folder picker.
+  constexpr double kPi = 3.14159265358979323846;
+  const std::string dir = "/disk-sample";
+  std::error_code ec;
+  std::filesystem::create_directories(dir, ec);
+  const std::string path = dir + "/sample-tone.wav";
+
+  djcore::PcmBuffer buf(2, 44100, 44100 / 2);  // 0.5 s stereo
+  for (std::size_t i = 0; i < buf.frames(); ++i) {
+    const double t = static_cast<double>(i) / 44100.0;
+    const float v = static_cast<float>(0.3 * std::sin(2.0 * kPi * 440.0 * t));
+    buf.channel(0)[i] = v;
+    buf.channel(1)[i] = v;
+  }
+  djcore::encodeToFile(path, buf, djcore::EncodeSpec{"wav", 44100, 16, false});
+
+  importDiskFiles({QString::fromStdString(path)});
 }
 
 // --- Test/automation accessors ----------------------------------------------

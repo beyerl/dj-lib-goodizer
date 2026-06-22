@@ -36,6 +36,16 @@ class MainWindow : public QMainWindow {
   // Seeds the library with synthetic, fully-analyzed tracks. No filesystem,
   // threads, or audio decode involved, so it is browser-safe and deterministic.
   void loadDemoLibrary();
+  // Imports the given (virtual-)filesystem paths through the real
+  // decode→analyze→persist pipeline. In the browser these are MEMFS paths the
+  // folder-picker wrote the user's files to; only WAV decodes without the
+  // FFmpeg backend (others are counted as failed). Synchronous (no worker
+  // thread), so it is safe in the single-threaded WASM build.
+  void importDiskFiles(const QStringList& paths);
+  // Writes a short synthetic WAV to the virtual filesystem and imports it via
+  // importDiskFiles — exercises the real disk-load path without a file picker
+  // (used by the browser e2e tests).
+  void loadDiskSample();
   int libraryRowCount() const;
   void selectRow(int sourceRow);
   void setCurrentTab(int index);

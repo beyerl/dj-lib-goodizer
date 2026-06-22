@@ -33,6 +33,7 @@
 
     let activeProfile = 0;
     let loaded = false;
+    let diskCount = 0;
     let selected = -1;
     let curTab = 0;
     let aboutShown = false;
@@ -83,7 +84,7 @@
         ready: true,
         version: VERSION,
         windowTitle: 'DJ Library Goodizer',
-        rowCount: loaded ? DEMO.length : 0,
+        rowCount: (loaded ? DEMO.length : 0) + diskCount,
         currentTab: curTab,
         tabName: TAB_NAMES[curTab] || '',
         statusText,
@@ -118,8 +119,50 @@
         }
       } else if (verb === 'about') {
         aboutShown = true;
+      } else if (verb === 'loadDiskSample') {
+        diskCount += 1;
+        curTab = 0;
+        statusText = 'Imported 1 file(s) from disk, 0 failed.';
+      } else if (verb === 'importDisk') {
+        const paths = window.__djDiskPaths || [];
+        window.__djDiskPaths = [];
+        diskCount += paths.length;
+        curTab = 0;
+        statusText =
+          `Imported ${paths.length} file(s) from disk, 0 failed.`;
       }
     }
+
+    // Mirror the WASM bridge's page glue (stubbed FS) so the picker button is
+    // present locally too; the real build writes bytes into Emscripten MEMFS.
+    window.__djWriteFile = function () { return true; };
+    (function () {
+      const exts = ['wav','wave','flac','mp3','aiff','aif','ogg','aac','m4a','alac'];
+      const btn = document.createElement('button');
+      btn.id = 'dj-folder-btn';
+      btn.textContent = '📁 Load Folder from Disk';
+      btn.setAttribute('style',
+        'position:fixed;top:8px;left:8px;z-index:99999;padding:6px 10px;font:14px sans-serif;cursor:pointer');
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.setAttribute('webkitdirectory', '');
+      input.style.display = 'none';
+      btn.onclick = function () { input.value = ''; input.click(); };
+      input.onchange = async function () {
+        const paths = [];
+        for (const f of Array.prototype.slice.call(input.files || [])) {
+          const name = f.webkitRelativePath || f.name;
+          const ext = (name.split('.').pop() || '').toLowerCase();
+          if (exts.indexOf(ext) < 0) continue;
+          if (window.__djWriteFile('/disk/' + name, null)) paths.push('/disk/' + name);
+        }
+        window.__djDiskPaths = paths;
+        window.__djCmd = 'importDisk';
+      };
+      document.body.appendChild(btn);
+      document.body.appendChild(input);
+    })();
 
     // Pump mirrors the QTimer in WasmBridge.cpp (drain one command / tick).
     setInterval(() => {

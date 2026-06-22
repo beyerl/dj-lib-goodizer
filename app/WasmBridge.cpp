@@ -115,12 +115,82 @@ void dispatch(MainWindow* w, const std::string& cmd) {
     w->setProfileByIndex(n);
   } else if (verb == "about") {
     g_aboutShown = true;
+  } else if (verb == "loadDiskSample") {
+    w->loadDiskSample();
+  } else if (verb == "importDisk") {
+    // The folder picker already wrote the files into MEMFS; collect (and clear)
+    // their paths and import them through the real decode pipeline.
+    char* joined = emscripten_run_script_string(
+        "(function(){var a=window.__djDiskPaths||[];window.__djDiskPaths=[];"
+        "return a.join('\\n');})()");
+    QStringList paths;
+    if (joined && *joined) {
+      paths = QString::fromUtf8(joined).split('\n', Qt::SkipEmptyParts);
+    }
+    if (!paths.isEmpty()) w->importDiskFiles(paths);
   }
 }
 
 }  // namespace
 
+// Page-side glue: a MEMFS writer (the Emscripten FS object is in module scope
+// here, so we hand the page a closure that writes into the same virtual
+// filesystem the C++ decoder reads) plus a folder-picker button. Picked audio
+// files are written to /disk/<relpath>, then "importDisk" is queued for the
+// pump to import them. Passed as a raw string literal (not EM_ASM) so the
+// commas in the JS don't get parsed as macro arguments.
+static void installFolderPicker() {
+  emscripten_run_script(R"JS(
+    (function () {
+      window.__djWriteFile = function (path, bytes) {
+        try {
+          var slash = path.lastIndexOf('/');
+          if (slash > 0) FS.mkdirTree(path.substring(0, slash));
+          FS.writeFile(path, bytes);
+          return true;
+        } catch (e) { console.error('djWriteFile failed', path, e); return false; }
+      };
+      if (document.getElementById('dj-folder-btn')) return;
+      var exts = ['wav','wave','flac','mp3','aiff','aif','ogg','aac','m4a','alac'];
+      var btn = document.createElement('button');
+      btn.id = 'dj-folder-btn';
+      btn.textContent = '📁 Load Folder from Disk';
+      btn.setAttribute('style',
+        'position:fixed;top:8px;left:8px;z-index:99999;padding:6px 10px;' +
+        'font:14px sans-serif;cursor:pointer');
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.setAttribute('webkitdirectory', '');
+      input.webkitdirectory = true;
+      input.style.display = 'none';
+      btn.onclick = function () { input.value = ''; input.click(); };
+      input.onchange = async function () {
+        var files = Array.prototype.slice.call(input.files || []);
+        var paths = [];
+        for (var i = 0; i < files.length; i++) {
+          var f = files[i];
+          var name = f.webkitRelativePath || f.name;
+          var ext = (name.split('.').pop() || '').toLowerCase();
+          if (exts.indexOf(ext) < 0) continue;
+          try {
+            var bytes = new Uint8Array(await f.arrayBuffer());
+            var p = '/disk/' + name;
+            if (window.__djWriteFile(p, bytes)) paths.push(p);
+          } catch (e) { console.error('read failed', name, e); }
+        }
+        window.__djDiskPaths = paths;
+        window.__djCmd = 'importDisk';
+      };
+      document.body.appendChild(btn);
+      document.body.appendChild(input);
+    })();
+  )JS");
+}
+
 void installWasmBridge(MainWindow* w) {
+  installFolderPicker();
+
   auto* pump = new QTimer(w);
   QObject::connect(pump, &QTimer::timeout, w, [w] {
     char* pending = emscripten_run_script_string(
