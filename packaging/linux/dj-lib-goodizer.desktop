@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DJ Library Goodizer
+GenericName=DJ Library Preparation
+Comment=Standardize and analyze a DJ music library
+Exec=dj-lib-goodizer
+Icon=dj-lib-goodizer
+Categories=AudioVideo;Audio;
+Terminal=false

@@ -125,6 +125,33 @@ jobs:
           echo "$out" | grep -qE "imported [1-9]"
           ./build/cli/djcli analyze --db fx/lib.db
 
+      # Self-contained Linux AppImage: linuxdeploy bundles the app, its FFmpeg
+      # .so dependencies, and (via the qt plugin) Qt, so the GUI runs on any
+      # mainstream glibc distro. APPIMAGE_EXTRACT_AND_RUN avoids needing FUSE.
+      - name: Build Linux AppImage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          OUTPUT: dj-lib-goodizer-x86_64.AppImage
+        run: |
+          set -e
+          mkdir -p tools
+          base=https://github.com/linuxdeploy
+          curl -sSL -o tools/linuxdeploy \
+            $base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -sSL -o tools/linuxdeploy-plugin-qt \
+            $base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x tools/linuxdeploy tools/linuxdeploy-plugin-qt
+          export PATH="$PWD/tools:$PATH"
+          export QMAKE="$(command -v qmake6 || command -v qmake)"
+          linuxdeploy --appdir AppDir \
+            --executable build/app/dj-lib-goodizer \
+            --desktop-file packaging/linux/dj-lib-goodizer.desktop \
+            --icon-file packaging/linux/dj-lib-goodizer.svg \
+            --plugin qt --output appimage
+          ls -la ./*.AppImage
+
       # --- Downloadable builds (every push) ---------------------------------
       # Windows: a self-contained portable zip. windeployqt bundles the Qt DLLs,
       # and the FFmpeg runtime DLLs are copied from vcpkg, so the GUI runs and
@@ -157,6 +184,14 @@ jobs:
         with:
           name: djcli-linux-x64
           path: build/cli/djcli
+          if-no-files-found: error
+
+      - name: Upload Linux AppImage
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dj-lib-goodizer-linux-appimage
+          path: ./*.AppImage
           if-no-files-found: error
 
   # --------------------------------------------------------------------------
