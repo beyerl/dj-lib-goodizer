@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "dj-lib-goodizer",
+  "version-string": "0.1.0",
+  "description": "Desktop DJ library preparation software (audio standardization & listening-context consistency).",
+  "dependencies": [],
+  "features": {
+    "audio-backends": {
+      "description": "FFmpeg/libsoxr/libebur128/TagLib audio decode-encode-analysis backends (Milestone 4+).",
+      "dependencies": [
+        { "name": "ffmpeg", "default-features": false, "features": ["avcodec", "avformat", "swresample"] },
+        "libebur128",
+        "soxr",
+        "taglib"
+      ]
+    }
+  }
+}

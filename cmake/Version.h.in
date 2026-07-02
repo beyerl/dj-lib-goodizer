@@ -1,0 +1,16 @@
+#pragma once
+
+// Generated from cmake/Version.h.in by CMake configure_file().
+// Single source of truth = project(... VERSION x.y.z) in the root CMakeLists.
+
+#define DJCORE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define DJCORE_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define DJCORE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define DJCORE_VERSION_STRING "@PROJECT_VERSION@"
+
+namespace djcore {
+
+// Returns the project version string, e.g. "0.1.0".
+const char* versionString();
+
+}  // namespace djcore

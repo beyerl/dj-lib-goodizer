@@ -1,0 +1,153 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Job A: the shippable Qt GUI app + cli + tests, on Windows and Linux.
+  # From Milestone 4 this also builds WITH FFmpeg (DJ_WITH_AUDIO_BACKENDS=ON)
+  # on BOTH OSes so the shipped app has broad-format decode.
+  # --------------------------------------------------------------------------
+  native-app:
+    name: native-app-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            libgl1-mesa-dev \
+            libxkbcommon-dev \
+            libvulkan-dev
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      # The Ninja generator needs cl.exe/link.exe on PATH; install-qt-action does
+      # not set up the MSVC toolchain, so do it explicitly (before configure).
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.2'
+          cache: true
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DDJ_BUILD_APP=ON
+          -DDJ_BUILD_CLI=ON
+          -DDJ_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        shell: bash
+        run: |
+          set +e
+          out=$(ctest --test-dir build --output-on-failure 2>&1)
+          rc=$?
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            # Surface the tail as a public error annotation (logs/summaries on a
+            # public repo still require sign-in to view; annotations don't).
+            msg=$(printf '%s\n' "$out" | tail -50 | sed 's/%/%25/g; s/\r//g' \
+                  | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=ctest failed (rc=$rc)::$msg"
+          fi
+          exit $rc
+
+      # Proves the app links and starts (and, from M4, that its FFmpeg runtime
+      # libraries are found) rather than only that it compiled.
+      - name: App startup smoke
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./build/app/dj-lib-goodizer.exe --version
+          else
+            ./build/app/dj-lib-goodizer --version
+          fi
+
+  # --------------------------------------------------------------------------
+  # Job B: fast anti-regression oracle. Qt-free core + cli + tests on both OSes.
+  # This is where the historical CI-only bugs (SQLite locking, job threading)
+  # are exercised via the cli end-to-end test.
+  # --------------------------------------------------------------------------
+  headless:
+    name: headless-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DDJ_BUILD_APP=OFF
+          -DDJ_BUILD_CLI=ON
+          -DDJ_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        shell: bash
+        run: |
+          set +e
+          out=$(ctest --test-dir build --output-on-failure 2>&1)
+          rc=$?
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            msg=$(printf '%s\n' "$out" | tail -50 | sed 's/%/%25/g; s/\r//g' \
+                  | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=ctest failed (rc=$rc)::$msg"
+          fi
+          exit $rc
+
+      - name: djcli smoke
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./build/cli/djcli.exe --version
+          else
+            ./build/cli/djcli --version
+          fi
