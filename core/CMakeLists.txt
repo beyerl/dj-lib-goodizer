@@ -27,7 +27,17 @@ configure_file(
 
 add_library(djcore
   src/Version.cpp
+  src/model/Enums.cpp
   src/audio/PcmBuffer.cpp
+  src/audio/WavIo.cpp
+  src/audio/AudioDecoder.cpp
+  src/audio/AudioEncoder.cpp
+  src/db/Database.cpp
+  src/db/Schema.cpp
+  src/db/TrackRepository.cpp
+  src/db/AuditLogRepository.cpp
+  src/processing/ProcessingEngine.cpp
+  src/profile/DefaultProfiles.cpp
 )
 
 target_include_directories(djcore PUBLIC
