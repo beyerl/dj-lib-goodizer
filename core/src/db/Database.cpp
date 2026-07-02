@@ -83,10 +83,13 @@ Database::Database(const std::string& path) {
     db_ = nullptr;
     throw DbError("cannot open database '" + path + "': " + msg);
   }
-  // WAL for concurrent readers/writers; busy_timeout so a locked write retries
-  // instead of failing immediately (pre-empts "database is locked"); enforce FKs.
-  exec("PRAGMA journal_mode=WAL;");
+  // busy_timeout MUST be set before switching to WAL: changing journal_mode
+  // needs a brief exclusive lock, and if two connections open the same file at
+  // once the loser gets SQLITE_BUSY. With the busy timeout installed first, that
+  // pragma waits/retries instead of throwing "database is locked". Then WAL for
+  // concurrent readers/writers, and foreign-key enforcement.
   exec("PRAGMA busy_timeout=5000;");
+  exec("PRAGMA journal_mode=WAL;");
   exec("PRAGMA foreign_keys=ON;");
 }
 

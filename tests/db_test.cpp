@@ -1,7 +1,9 @@
+#include <atomic>
 #include <ctime>
 #include <filesystem>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -71,8 +73,11 @@ TEST(Db, AuditInsertAndQuery) {
   EXPECT_EQ(ar.forTrack(id)[0].afterJson, "{\"sampleRate\":44100}");
 }
 
-// The historical "database is locked" bug: two connections writing the same
-// file DB concurrently. WAL + busy_timeout must let them both succeed.
+// The historical "database is locked" bug. Many threads repeatedly OPEN their
+// own connection to the same file DB (each open re-runs the journal_mode=WAL
+// pragma, which briefly needs an exclusive lock) and write. With busy_timeout
+// installed before the WAL pragma, every open must succeed instead of racing
+// to SQLITE_BUSY. Heavy open contention is what reproduces the bug.
 TEST(Db, ConcurrentWritersDoNotLock) {
   const auto dbPath =
       (fs::temp_directory_path() /
@@ -84,25 +89,33 @@ TEST(Db, ConcurrentWritersDoNotLock) {
     migrate(init);
   }
 
-  auto writer = [&](int base) {
-    Database db(dbPath);
-    TrackRepository repo(db);
-    for (int i = 0; i < 50; ++i) {
-      Track t;
-      t.sourcePath = "/x/" + std::to_string(base + i) + ".wav";
-      repo.insert(t);
-    }
-  };
+  constexpr int kThreads = 8;
+  constexpr int kOpensPerThread = 10;
+  std::atomic<int> failures{0};
 
-  std::thread t1(writer, 0);
-  std::thread t2(writer, 1000);
-  t1.join();
-  t2.join();
+  std::vector<std::thread> threads;
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&, t]() {
+      try {
+        for (int k = 0; k < kOpensPerThread; ++k) {
+          Database db(dbPath);  // re-runs the WAL pragma — the racy path
+          TrackRepository repo(db);
+          Track track;
+          track.sourcePath = "/x/" + std::to_string(t * 1000 + k) + ".wav";
+          repo.insert(track);
+        }
+      } catch (const std::exception&) {
+        failures.fetch_add(1);
+      }
+    });
+  }
+  for (auto& th : threads) th.join();
 
+  EXPECT_EQ(failures.load(), 0);
   {
     Database db(dbPath);
     TrackRepository repo(db);
-    EXPECT_EQ(repo.count(), 100);
+    EXPECT_EQ(repo.count(), kThreads * kOpensPerThread);
   }
 
   std::error_code ec;
