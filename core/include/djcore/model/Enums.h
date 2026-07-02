@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace djcore {
 
 // Three-state flag model used across all feature areas (never binary
@@ -22,7 +24,8 @@ enum class OperationType {
   WidthBalanceCorrection,  // PerceptualAltering
 };
 
-// Stable string form for persistence / audit log.
+// Stable string form for persistence / audit log, and its inverse.
 const char* toString(OperationType type);
+OperationType operationFromString(const std::string& s);
 
 }  // namespace djcore

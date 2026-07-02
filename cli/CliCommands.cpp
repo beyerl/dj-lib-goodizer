@@ -1,6 +1,7 @@
 // djcli command implementations. Drives the real pipeline: import a folder ->
-// (analyze) -> apply a profile writing REAL conformed output files -> record an
-// audit log. Exposed via runCli() so both the binary and the e2e test share it.
+// analyze (all five feature areas) -> apply a profile writing REAL conformed
+// output files -> record an audit log. Exposed via runCli() so both the binary
+// and the e2e test share it.
 
 #include "CliCommands.h"
 
@@ -13,12 +14,17 @@
 #include <vector>
 
 #include "djcore/Version.h"
+#include "djcore/analysis/Flags.h"
 #include "djcore/audio/AudioDecoder.h"
 #include "djcore/audio/AudioError.h"
+#include "djcore/db/AnalysisResultRepository.h"
 #include "djcore/db/AuditLogRepository.h"
 #include "djcore/db/Database.h"
+#include "djcore/db/ProfileRepository.h"
 #include "djcore/db/Schema.h"
 #include "djcore/db/TrackRepository.h"
+#include "djcore/jobs/AnalysisBatch.h"
+#include "djcore/jobs/JobControl.h"
 #include "djcore/processing/ProcessingEngine.h"
 #include "djcore/profile/DefaultProfiles.h"
 
@@ -36,6 +42,7 @@ struct Args {
     auto it = flags.find(key);
     return it == flags.end() ? def : it->second;
   }
+  bool has(const std::string& key) const { return flags.count(key) != 0; }
 };
 
 Args parseArgs(int argc, char** argv) {
@@ -61,11 +68,12 @@ void printUsage() {
   std::cout << "djcli " << versionString() << " -- DJ library preparation CLI\n\n"
             << "Usage:\n"
             << "  djcli import <folder> --db <db>\n"
+            << "  djcli analyze --db <db> [--jobs N]\n"
             << "  djcli list --db <db>\n"
-            << "  djcli apply --db <db> --profile <name> --out <dir>\n"
-            << "  djcli analyze --db <db>\n"
+            << "  djcli apply --db <db> --profile <name> --out <dir> "
+               "[--no-gain] [--no-trim]\n"
             << "  djcli audit --db <db> [--export <file>]\n"
-            << "  djcli profiles\n"
+            << "  djcli profiles --db <db>\n"
             << "  djcli --version | --help\n";
 }
 
@@ -80,14 +88,21 @@ std::string jsonEscape(const std::string& s) {
 
 std::int64_t nowUnix() { return static_cast<std::int64_t>(std::time(nullptr)); }
 
+// Opens the library DB, applies migrations, and seeds the default profiles.
+Database openLibrary(const std::string& path) {
+  Database db(path);
+  migrate(db);
+  ProfileRepository(db).seedDefaultsIfEmpty();
+  return db;
+}
+
 int cmdImport(const Args& a) {
   if (a.positional.empty() || a.flag("db", "").empty()) {
     std::cerr << "import: need <folder> and --db <db>\n";
     return 2;
   }
   const fs::path folder = a.positional[0];
-  Database db(a.flag("db", ""));
-  migrate(db);
+  Database db = openLibrary(a.flag("db", ""));
   TrackRepository tracks(db);
 
   int imported = 0, skipped = 0, failed = 0;
@@ -118,19 +133,63 @@ int cmdImport(const Args& a) {
   return failed > 0 ? 1 : 0;
 }
 
+int cmdAnalyze(const Args& a) {
+  if (a.flag("db", "").empty()) {
+    std::cerr << "analyze: need --db <db>\n";
+    return 2;
+  }
+  Database db = openLibrary(a.flag("db", ""));
+  TrackRepository tracks(db);
+  AnalysisResultRepository results(db);
+
+  const auto all = tracks.all();
+  std::vector<std::string> paths;
+  paths.reserve(all.size());
+  for (const auto& t : all) paths.push_back(t.sourcePath);
+
+  const unsigned jobs =
+      a.has("jobs") ? static_cast<unsigned>(std::stoul(a.flag("jobs", "0"))) : 0;
+
+  JobControl control;
+  AnalysisBatch batch;
+  std::cout << "analyzing " << paths.size() << " track(s)...\n";
+  auto items = batch.run(paths, control, {}, jobs);
+
+  int ok = 0, failed = 0;
+  for (std::size_t i = 0; i < items.size(); ++i) {
+    if (items[i].ok && items[i].result) {
+      results.upsert(all[i].id, *items[i].result);
+      ++ok;
+    } else {
+      ++failed;
+      if (!items[i].error.empty())
+        std::cerr << "  failed: " << items[i].path << " (" << items[i].error << ")\n";
+    }
+  }
+  std::cout << "analyzed " << ok << ", failed " << failed << "\n";
+  return failed > 0 ? 1 : 0;
+}
+
 int cmdList(const Args& a) {
   if (a.flag("db", "").empty()) {
     std::cerr << "list: need --db <db>\n";
     return 2;
   }
-  Database db(a.flag("db", ""));
-  migrate(db);
+  Database db = openLibrary(a.flag("db", ""));
   TrackRepository tracks(db);
+  AnalysisResultRepository results(db);
   for (const auto& t : tracks.all()) {
     std::cout << t.id << "\t" << t.format.container << " " << t.format.sampleRate
-              << "Hz/" << t.format.bitDepth << "bit/" << t.format.channels << "ch\t"
-              << t.sourcePath << (t.outputPath.empty() ? "" : " -> " + t.outputPath)
-              << "\n";
+              << "Hz/" << t.format.bitDepth << "bit/" << t.format.channels << "ch";
+    if (auto r = results.getByTrack(t.id)) {
+      std::cout << "\tLUFS=" << r->integratedLufs << " DR=" << r->drValue
+                << " crest=" << r->crestFactor;
+      if (r->phaseCorrelation) std::cout << " corr=" << *r->phaseCorrelation;
+      if (r->stereoWidth) std::cout << " width=" << *r->stereoWidth;
+    } else {
+      std::cout << "\t(not analyzed)";
+    }
+    std::cout << "\t" << fs::path(t.sourcePath).filename().string() << "\n";
   }
   return 0;
 }
@@ -140,38 +199,55 @@ int cmdApply(const Args& a) {
     std::cerr << "apply: need --db <db> and --out <dir>\n";
     return 2;
   }
+  Database db = openLibrary(a.flag("db", ""));
+  ProfileRepository profiles(db);
   const std::string profileName = a.flag("profile", "Archival / Lossless");
-  auto profileOpt = defaultProfileByName(profileName);
+  auto profileOpt = profiles.getByName(profileName);
+  if (!profileOpt) profileOpt = defaultProfileByName(profileName);
   if (!profileOpt) {
     std::cerr << "apply: unknown profile '" << profileName << "'\n";
     return 2;
   }
+
   const fs::path outDir = a.flag("out", "");
   std::error_code ec;
   fs::create_directories(outDir, ec);
 
-  Database db(a.flag("db", ""));
-  migrate(db);
   TrackRepository tracks(db);
   AuditLogRepository audit(db);
+  AnalysisResultRepository results(db);
   ProcessingEngine engine(*profileOpt);
+
+  ProcessingOptions options;
+  options.applyGain = !a.has("no-gain");
+  options.applyTrim = !a.has("no-trim");
 
   int processed = 0, failed = 0;
   for (const auto& t : tracks.all()) {
     const fs::path outPath =
         outDir / (fs::path(t.sourcePath).stem().string() + "." + profileOpt->container);
     try {
-      AnalysisResult analysis;  // stub in M2
-      ProcessingChange ch = engine.process(t, analysis, outPath.string());
+      AnalysisResult analysis;
+      if (auto r = results.getByTrack(t.id)) analysis = *r;
+
+      ProcessingChange ch = engine.process(t, analysis, outPath.string(), options);
       tracks.setOutputPath(t.id, outPath.string());
+
+      OperationType op = OperationType::None;
+      if (ch.gainApplied)
+        op = OperationType::GainNormalize;
+      else if (ch.resampled || ch.requantized || ch.containerChanged)
+        op = OperationType::ResampleTranscode;
+      else if (ch.trimmed)
+        op = OperationType::SilenceTrim;
 
       AuditLogEntry entry;
       entry.trackId = t.id;
-      entry.operation = (ch.resampled || ch.requantized || ch.containerChanged)
-                            ? OperationType::ResampleTranscode
-                            : OperationType::None;
+      entry.operation = op;
       entry.paramsJson = "{\"profile\":\"" + jsonEscape(profileName) +
-                         "\",\"passthrough\":" + (ch.passthrough ? "true" : "false") + "}";
+                         "\",\"passthrough\":" + (ch.passthrough ? "true" : "false") +
+                         ",\"gainDb\":" + std::to_string(ch.gainDb) +
+                         ",\"trimLeadMs\":" + std::to_string(ch.trimLeadMs) + "}";
       entry.beforeJson = "{\"container\":\"" + jsonEscape(ch.fromContainer) +
                          "\",\"sampleRate\":" + std::to_string(ch.fromRate) +
                          ",\"bitDepth\":" + std::to_string(ch.fromBits) + "}";
@@ -182,8 +258,9 @@ int cmdApply(const Args& a) {
       entry.timestampUnix = nowUnix();
       audit.insert(entry);
 
-      std::cout << "  " << t.sourcePath << " -> " << outPath.string()
-                << (ch.passthrough ? "  [passthrough]" : "  [conformed]") << "\n";
+      std::cout << "  " << fs::path(t.sourcePath).filename().string() << " -> "
+                << outPath.string() << (ch.passthrough ? "  [passthrough]" : "")
+                << "\n";
       ++processed;
     } catch (const std::exception& e) {
       std::cerr << "  failed: " << t.sourcePath << " (" << e.what() << ")\n";
@@ -194,27 +271,12 @@ int cmdApply(const Args& a) {
   return failed > 0 ? 1 : 0;
 }
 
-int cmdAnalyze(const Args& a) {
-  if (a.flag("db", "").empty()) {
-    std::cerr << "analyze: need --db <db>\n";
-    return 2;
-  }
-  Database db(a.flag("db", ""));
-  migrate(db);
-  TrackRepository tracks(db);
-  // Analyzers land in M5-M8. For now this confirms the working set is readable.
-  std::cout << "analyze: " << tracks.count()
-            << " track(s) in working set (analyzers arrive in later milestones)\n";
-  return 0;
-}
-
 int cmdAudit(const Args& a) {
   if (a.flag("db", "").empty()) {
     std::cerr << "audit: need --db <db>\n";
     return 2;
   }
-  Database db(a.flag("db", ""));
-  migrate(db);
+  Database db = openLibrary(a.flag("db", ""));
   AuditLogRepository audit(db);
   const auto entries = audit.all();
 
@@ -246,7 +308,18 @@ int cmdAudit(const Args& a) {
   return 0;
 }
 
-int cmdProfiles() {
+int cmdProfiles(const Args& a) {
+  if (!a.flag("db", "").empty()) {
+    Database db = openLibrary(a.flag("db", ""));
+    ProfileRepository profiles(db);
+    for (const auto& p : profiles.all()) {
+      std::cout << p.name << "\tcontainer=" << p.container << " sampleRate="
+                << (p.sampleRate ? std::to_string(p.sampleRate) : "keep")
+                << " bitDepth=" << (p.bitDepth ? std::to_string(p.bitDepth) : "keep")
+                << " loudness=" << p.loudnessTargetLufs << "\n";
+    }
+    return 0;
+  }
   for (const auto& p : defaultProfiles()) {
     std::cout << p.name << "\tcontainer=" << p.container << " sampleRate="
               << (p.sampleRate ? std::to_string(p.sampleRate) : "keep")
@@ -275,11 +348,11 @@ int runCli(int argc, char** argv) {
 
   try {
     if (a.command == "import") return cmdImport(a);
+    if (a.command == "analyze") return cmdAnalyze(a);
     if (a.command == "list") return cmdList(a);
     if (a.command == "apply") return cmdApply(a);
-    if (a.command == "analyze") return cmdAnalyze(a);
     if (a.command == "audit") return cmdAudit(a);
-    if (a.command == "profiles") return cmdProfiles();
+    if (a.command == "profiles") return cmdProfiles(a);
   } catch (const std::exception& e) {
     std::cerr << "error: " << e.what() << "\n";
     return 1;

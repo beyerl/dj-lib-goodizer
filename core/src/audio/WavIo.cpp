@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "djcore/audio/AudioError.h"
+#include "djcore/audio/Dither.h"
 
 namespace djcore {
 namespace {
@@ -196,7 +197,7 @@ FormatInfo probeWav(const std::string& path) {
 }
 
 void writeWav(const std::string& path, const PcmBuffer& buffer, int bitDepth,
-              bool floatFormat) {
+              bool floatFormat, bool dither) {
   const int channels = buffer.channels();
   const std::size_t frames = buffer.frames();
   if (channels <= 0) throw AudioError("writeWav: buffer has no channels");
@@ -231,6 +232,7 @@ void writeWav(const std::string& path, const PcmBuffer& buffer, int bitDepth,
             static_cast<std::streamsize>(hdr.size()));
 
   std::vector<std::uint8_t> row(blockAlign);
+  TpdfDither dith;
   for (std::size_t i = 0; i < frames; ++i) {
     for (int c = 0; c < channels; ++c) {
       const float f = buffer.channel(c)[i];
@@ -241,19 +243,24 @@ void writeWav(const std::string& path, const PcmBuffer& buffer, int bitDepth,
         d[0] = bits & 0xFF; d[1] = (bits >> 8) & 0xFF;
         d[2] = (bits >> 16) & 0xFF; d[3] = (bits >> 24) & 0xFF;
       } else if (bitDepth == 16) {
-        long v = std::lround(f * 32768.0f);
+        double code = static_cast<double>(f) * 32768.0;
+        if (dither) code += dith.next();
+        long v = std::lround(code);
         if (v > 32767) v = 32767;
         if (v < -32768) v = -32768;
         std::int16_t s = static_cast<std::int16_t>(v);
         d[0] = s & 0xFF; d[1] = (s >> 8) & 0xFF;
       } else if (bitDepth == 24) {
-        long v = std::lround(static_cast<double>(f) * 8388608.0);
+        double code = static_cast<double>(f) * 8388608.0;
+        if (dither) code += dith.next();
+        long v = std::lround(code);
         if (v > 8388607) v = 8388607;
         if (v < -8388608) v = -8388608;
         std::int32_t s = static_cast<std::int32_t>(v);
         d[0] = s & 0xFF; d[1] = (s >> 8) & 0xFF; d[2] = (s >> 16) & 0xFF;
       } else {  // 32-bit int
         double dv = static_cast<double>(f) * 2147483648.0;
+        if (dither) dv += dith.next();
         if (dv > 2147483647.0) dv = 2147483647.0;
         if (dv < -2147483648.0) dv = -2147483648.0;
         std::int32_t s = static_cast<std::int32_t>(std::llround(dv));

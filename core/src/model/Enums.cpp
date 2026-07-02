@@ -1,5 +1,7 @@
 #include "djcore/model/Enums.h"
 
+#include <string>
+
 namespace djcore {
 
 const char* toString(OperationType type) {
@@ -20,6 +22,16 @@ const char* toString(OperationType type) {
       return "width_balance_correction";
   }
   return "unknown";
+}
+
+OperationType operationFromString(const std::string& s) {
+  if (s == "resample_transcode") return OperationType::ResampleTranscode;
+  if (s == "dither") return OperationType::Dither;
+  if (s == "silence_trim") return OperationType::SilenceTrim;
+  if (s == "gain_normalize") return OperationType::GainNormalize;
+  if (s == "compression") return OperationType::Compression;
+  if (s == "width_balance_correction") return OperationType::WidthBalanceCorrection;
+  return OperationType::None;
 }
 
 }  // namespace djcore

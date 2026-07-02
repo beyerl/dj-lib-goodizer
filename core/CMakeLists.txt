@@ -32,12 +32,26 @@ add_library(djcore
   src/audio/WavIo.cpp
   src/audio/AudioDecoder.cpp
   src/audio/AudioEncoder.cpp
+  src/audio/Resampler.cpp
+  src/audio/Dither.cpp
+  src/analysis/AnalysisPipeline.cpp
+  src/analysis/Flags.cpp
+  src/analysis/analyzers/SilenceDetector.cpp
+  src/analysis/analyzers/LoudnessDynamicsAnalyzer.cpp
+  src/analysis/analyzers/PhaseMonoAnalyzer.cpp
+  src/analysis/analyzers/StereoWidthAnalyzer.cpp
   src/db/Database.cpp
   src/db/Schema.cpp
   src/db/TrackRepository.cpp
+  src/db/AnalysisResultRepository.cpp
   src/db/AuditLogRepository.cpp
+  src/db/ProfileRepository.cpp
+  src/processing/Operations.cpp
   src/processing/ProcessingEngine.cpp
   src/profile/DefaultProfiles.cpp
+  src/jobs/JobControl.cpp
+  src/jobs/ParallelFor.cpp
+  src/jobs/AnalysisBatch.cpp
 )
 
 target_include_directories(djcore PUBLIC

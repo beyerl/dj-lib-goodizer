@@ -8,7 +8,7 @@ namespace djcore {
 void encodeToFile(const std::string& path, const PcmBuffer& buffer,
                   const EncodeSpec& spec) {
   if (spec.container == "wav") {
-    writeWav(path, buffer, spec.bitDepth, spec.floatFormat);
+    writeWav(path, buffer, spec.bitDepth, spec.floatFormat, spec.dither);
     return;
   }
   // FLAC/AIFF/lossy encoders arrive with the FFmpeg backend in M4.

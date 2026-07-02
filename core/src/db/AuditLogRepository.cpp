@@ -10,8 +10,7 @@ AuditLogEntry readRow(Statement& st) {
   e.id = st.columnInt64(0);
   e.trackId = st.columnInt64(1);
   e.jobId = st.columnInt64(2);
-  // operation stored as its string form; keep the enum's default and let the
-  // string carry meaning for export. (Reverse-mapping is not needed yet.)
+  e.operation = operationFromString(st.columnText(3));
   e.paramsJson = st.columnText(4);
   e.beforeJson = st.columnText(5);
   e.afterJson = st.columnText(6);

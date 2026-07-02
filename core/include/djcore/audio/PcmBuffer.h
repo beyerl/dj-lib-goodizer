@@ -36,4 +36,13 @@ class PcmBuffer {
   std::vector<std::vector<float>> planes_;  // [channel][frame]
 };
 
+// Non-owning, read-only view of a contiguous run of frames across all channels,
+// used to stream decoded audio to analyzers. planes[c][i] is frame i of channel c.
+struct PcmBlock {
+  const float* const* planes = nullptr;
+  int channels = 0;
+  int sampleRate = 0;
+  std::size_t frames = 0;
+};
+
 }  // namespace djcore

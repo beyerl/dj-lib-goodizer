@@ -18,6 +18,9 @@ add_executable(djcore_tests
   smoke_test.cpp
   audio_test.cpp
   db_test.cpp
+  analysis_test.cpp
+  processing_test.cpp
+  jobs_test.cpp
 )
 target_link_libraries(djcore_tests PRIVATE djcore GTest::gtest_main)
 gtest_discover_tests(djcore_tests)

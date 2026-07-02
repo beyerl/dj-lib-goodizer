@@ -20,8 +20,10 @@ PcmBuffer readWav(const std::string& path, FormatInfo* infoOut = nullptr);
 FormatInfo probeWav(const std::string& path);
 
 // Writes `buffer` as a WAV file at the given integer/float bit depth
-// (16, 24, or 32-for-float). Throws AudioError on failure.
+// (16, 24, or 32-for-float). When `dither` is true and writing integer PCM,
+// applies TPDF dither before quantization (use on bit-depth reduction).
+// Throws AudioError on failure.
 void writeWav(const std::string& path, const PcmBuffer& buffer, int bitDepth,
-              bool floatFormat = false);
+              bool floatFormat = false, bool dither = false);
 
 }  // namespace djcore

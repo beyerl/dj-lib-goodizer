@@ -89,39 +89,6 @@ jobs:
             ./build/app/dj-lib-goodizer --version
           fi
 
-      # --- Downloadable builds (every push) ---------------------------------
-      # Windows: a self-contained portable zip. windeployqt bundles the Qt DLLs
-      # so the GUI runs on a clean machine; the Qt-free djcli is included too.
-      - name: Package Windows portable zip
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist/dj-lib-goodizer | Out-Null
-          Copy-Item build/app/dj-lib-goodizer.exe dist/dj-lib-goodizer/
-          Copy-Item build/cli/djcli.exe dist/dj-lib-goodizer/
-          windeployqt --release --no-translations --no-system-d3d-compiler `
-            dist/dj-lib-goodizer/dj-lib-goodizer.exe
-          Compress-Archive -Path dist/dj-lib-goodizer/* `
-            -DestinationPath dist/dj-lib-goodizer-windows-x64.zip -Force
-
-      - name: Upload Windows package
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dj-lib-goodizer-windows-x64
-          path: dist/dj-lib-goodizer-windows-x64.zip
-          if-no-files-found: error
-
-      # Linux: the Qt-free djcli runs standalone. (Self-contained GUI packaging
-      # — AppImage — lands in M11.)
-      - name: Upload Linux djcli
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: djcli-linux-x64
-          path: build/cli/djcli
-          if-no-files-found: error
-
   # --------------------------------------------------------------------------
   # Job B: fast anti-regression oracle. Qt-free core + cli + tests on both OSes.
   # This is where the historical CI-only bugs (SQLite locking, job threading)

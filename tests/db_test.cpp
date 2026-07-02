@@ -71,6 +71,8 @@ TEST(Db, AuditInsertAndQuery) {
   EXPECT_EQ(ar.count(), 1);
   ASSERT_EQ(ar.forTrack(id).size(), 1u);
   EXPECT_EQ(ar.forTrack(id)[0].afterJson, "{\"sampleRate\":44100}");
+  // Operation type must round-trip through its stored string form.
+  EXPECT_EQ(ar.forTrack(id)[0].operation, OperationType::ResampleTranscode);
 }
 
 // The historical "database is locked" bug. Many threads repeatedly OPEN their
