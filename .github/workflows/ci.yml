@@ -9,9 +9,9 @@ on:
 
 jobs:
   # --------------------------------------------------------------------------
-  # Job A: the shippable Qt GUI app + cli + tests, on Windows and Linux.
-  # From Milestone 4 this also builds WITH FFmpeg (DJ_WITH_AUDIO_BACKENDS=ON)
-  # on BOTH OSes so the shipped app has broad-format decode.
+  # Job A: the shippable Qt GUI app + cli + tests, built WITH FFmpeg
+  # (DJ_WITH_AUDIO_BACKENDS=ON) on Windows and Linux so it decodes MP3/AAC/OGG/
+  # FLAC/ALAC/AIFF. Publishes downloadable builds on every push.
   # --------------------------------------------------------------------------
   native-app:
     name: native-app-${{ matrix.os }}
@@ -29,19 +29,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             ninja-build \
-            libgl1-mesa-dev \
-            libxkbcommon-dev \
-            libvulkan-dev
+            libgl1-mesa-dev libxkbcommon-dev libvulkan-dev \
+            pkg-config ffmpeg \
+            libavformat-dev libavcodec-dev libavutil-dev libswresample-dev
 
       - name: Install Ninja (Windows)
         if: runner.os == 'Windows'
         uses: seanmiddleditch/gha-setup-ninja@v5
 
-      # The Ninja generator needs cl.exe/link.exe on PATH; install-qt-action does
-      # not set up the MSVC toolchain, so do it explicitly (before configure).
       - name: Set up MSVC environment (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+
+      # Cache the vcpkg-built FFmpeg so only the first Windows run pays the build.
+      - name: Cache vcpkg binaries (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -49,13 +56,28 @@ jobs:
           version: '6.7.2'
           cache: true
 
-      - name: Configure
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DDJ_BUILD_APP=ON
-          -DDJ_BUILD_CLI=ON
-          -DDJ_BUILD_TESTS=ON
+          -DDJ_BUILD_APP=ON -DDJ_BUILD_CLI=ON -DDJ_BUILD_TESTS=ON
+          -DDJ_WITH_AUDIO_BACKENDS=ON
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+        run: |
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDJ_BUILD_APP=ON -DDJ_BUILD_CLI=ON -DDJ_BUILD_TESTS=ON \
+            -DDJ_WITH_AUDIO_BACKENDS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows \
+            -DVCPKG_MANIFEST_FEATURES=audio-backends
 
       - name: Build
         run: cmake --build build --parallel
@@ -68,16 +90,12 @@ jobs:
           rc=$?
           printf '%s\n' "$out"
           if [ $rc -ne 0 ]; then
-            # Surface the tail as a public error annotation (logs/summaries on a
-            # public repo still require sign-in to view; annotations don't).
             msg=$(printf '%s\n' "$out" | tail -50 | sed 's/%/%25/g; s/\r//g' \
                   | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=ctest failed (rc=$rc)::$msg"
           fi
           exit $rc
 
-      # Proves the app links and starts (and, from M4, that its FFmpeg runtime
-      # libraries are found) rather than only that it compiled.
       - name: App startup smoke
         shell: bash
         env:
@@ -89,9 +107,28 @@ jobs:
             ./build/app/dj-lib-goodizer --version
           fi
 
+      # Proves the FFmpeg backend actually decodes broad formats end-to-end
+      # (Linux runners ship the ffmpeg CLI to synthesize the fixtures).
+      - name: FFmpeg decode smoke (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          mkdir -p fx
+          ffmpeg -hide_banner -loglevel error -y -f lavfi \
+            -i "sine=frequency=440:duration=1" -ac 2 fx/tone.flac
+          ffmpeg -hide_banner -loglevel error -y -f lavfi \
+            -i "sine=frequency=1000:duration=1" -ac 2 fx/tone.mp3 \
+            || echo "(mp3 encode unavailable, continuing with flac only)"
+          out=$(./build/cli/djcli import fx --db fx/lib.db)
+          echo "$out"
+          echo "$out" | grep -qE "imported [1-9]"
+          ./build/cli/djcli analyze --db fx/lib.db
+
       # --- Downloadable builds (every push) ---------------------------------
-      # Windows: a self-contained portable zip. windeployqt bundles the Qt DLLs
-      # so the GUI runs on a clean machine; the Qt-free djcli is included too.
+      # Windows: a self-contained portable zip. windeployqt bundles the Qt DLLs,
+      # and the FFmpeg runtime DLLs are copied from vcpkg, so the GUI runs and
+      # decodes broad formats on a clean machine; the Qt-free djcli is included.
       - name: Package Windows portable zip
         if: runner.os == 'Windows'
         shell: pwsh
@@ -101,6 +138,8 @@ jobs:
           Copy-Item build/cli/djcli.exe dist/dj-lib-goodizer/
           windeployqt --release --no-translations --no-system-d3d-compiler `
             dist/dj-lib-goodizer/dj-lib-goodizer.exe
+          $ffbin = "build/vcpkg_installed/x64-windows/bin"
+          if (Test-Path $ffbin) { Copy-Item "$ffbin/*.dll" dist/dj-lib-goodizer/ -Force }
           Compress-Archive -Path dist/dj-lib-goodizer/* `
             -DestinationPath dist/dj-lib-goodizer-windows-x64.zip -Force
 
@@ -112,8 +151,6 @@ jobs:
           path: dist/dj-lib-goodizer-windows-x64.zip
           if-no-files-found: error
 
-      # Linux: the Qt-free djcli runs standalone. (Self-contained GUI packaging
-      # — AppImage — lands in M11.)
       - name: Upload Linux djcli
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
@@ -123,9 +160,10 @@ jobs:
           if-no-files-found: error
 
   # --------------------------------------------------------------------------
-  # Job B: fast anti-regression oracle. Qt-free core + cli + tests on both OSes.
-  # This is where the historical CI-only bugs (SQLite locking, job threading)
-  # are exercised via the cli end-to-end test.
+  # Job B: fast anti-regression oracle AND no-backends fallback. Qt-free core +
+  # cli + tests, DJ_WITH_AUDIO_BACKENDS OFF, on both OSes. Guarantees the
+  # dependency-free path (WAV, pure-C++ resampler) keeps compiling and passing,
+  # and exercises the historical SQLite-locking / threading paths.
   # --------------------------------------------------------------------------
   headless:
     name: headless-${{ matrix.os }}

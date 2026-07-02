@@ -63,9 +63,22 @@ target_compile_features(djcore PUBLIC cxx_std_20)
 find_package(Threads REQUIRED)
 target_link_libraries(djcore PUBLIC sqlite3 Threads::Threads)
 
-# Broad-format decode/encode (FFmpeg) + libsoxr/libebur128/TagLib are layered in
-# under this flag starting M4. The dependency-free WAV backend (M2) is always
-# available.
+# Broad-format decode (FFmpeg/libav) layered in under this flag. The
+# dependency-free WAV backend is always available. On Windows FFmpeg comes from
+# vcpkg (its FindFFMPEG module); on Linux from pkg-config (apt -dev packages).
 if(DJ_WITH_AUDIO_BACKENDS)
+  target_sources(djcore PRIVATE src/audio/FfmpegDecoder.cpp)
   target_compile_definitions(djcore PUBLIC DJ_WITH_AUDIO_BACKENDS=1)
+
+  if(WIN32)
+    find_package(FFMPEG REQUIRED)  # provided by vcpkg's ffmpeg port
+    target_include_directories(djcore PRIVATE ${FFMPEG_INCLUDE_DIRS})
+    target_link_directories(djcore PRIVATE ${FFMPEG_LIBRARY_DIRS})
+    target_link_libraries(djcore PUBLIC ${FFMPEG_LIBRARIES})
+  else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+      libavformat libavcodec libavutil libswresample)
+    target_link_libraries(djcore PUBLIC PkgConfig::FFMPEG)
+  endif()
 endif()

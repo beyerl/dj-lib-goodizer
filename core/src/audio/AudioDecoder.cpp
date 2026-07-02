@@ -6,6 +6,10 @@
 #include "djcore/audio/AudioError.h"
 #include "djcore/audio/WavIo.h"
 
+#if DJ_WITH_AUDIO_BACKENDS
+#include "FfmpegBackend.h"
+#endif
+
 namespace djcore {
 namespace {
 
